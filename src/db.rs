@@ -33,10 +33,12 @@ impl Database {
     }
 
     // Helper methods for testing
+    #[allow(dead_code)]
     pub fn from_pool(pool: SqlitePool) -> Self {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     pub fn get_pool(&self) -> &SqlitePool {
         &self.pool
     }
