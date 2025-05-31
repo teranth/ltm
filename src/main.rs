@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod formatting;
 mod models;
 mod validation;
 

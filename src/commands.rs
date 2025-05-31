@@ -5,6 +5,7 @@ use edit::edit;
 use std::collections::HashMap;
 
 use crate::db::Database;
+use crate::formatting::{format_ticket_list, format_ticket_details, format_project_summary};
 use crate::validation::{
     format_validation_error, validate_content_length, validate_project_name,
     validate_status, validate_ticket_id, validate_time, ContentType, ValidationError,
@@ -180,32 +181,18 @@ impl CommandHandler {
                 };
 
                 let tickets = self.db.list_tickets(validated_project.as_deref()).await?;
-                for ticket in tickets {
-                    println!(
-                        "ID: {}, Project: {}, Name: {}, Status: {}",
-                        ticket.id, ticket.project, ticket.name, ticket.status
-                    );
-                }
+                let formatted_output = format_ticket_list(&tickets);
+                println!("{}", formatted_output);
             }
             Commands::Show { ticket_id } => {
                 // Validate inputs
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
 
                 if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
-                    println!("Ticket Details:");
-                    println!("ID: {}", ticket.id);
-                    println!("Project: {}", ticket.project);
-                    println!("Name: {}", ticket.name);
-                    println!("Status: {}", ticket.status);
-                    println!("Description: {}", ticket.description);
-                    println!("Created: {}", ticket.created_at);
-                    println!("Updated: {}", ticket.updated_at);
-
-                    println!("\nComments:");
                     let comments = self.db.get_comments(validated_ticket_id).await?;
-                    for comment in comments {
-                        println!("[{}] {}", comment.created_at, comment.content);
-                    }
+                    let time_logs = vec![]; // TODO: Add get_time_logs method to database
+                    let formatted_output = format_ticket_details(&ticket, &comments, &time_logs);
+                    println!("{}", formatted_output);
                 } else {
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
                 }
@@ -273,11 +260,8 @@ impl CommandHandler {
                 let validated_project = validate_project_name(&project)?;
 
                 let summary = self.db.get_project_summary(&validated_project).await?;
-                println!("Project Summary for {}:", validated_project);
-                println!("Total Tickets: {}", summary.total_tickets);
-                println!("Open Tickets: {}", summary.open_tickets);
-                println!("Closed Tickets: {}", summary.closed_tickets);
-                println!("Total Time: {:.2} hours", summary.total_time_hours);
+                let formatted_output = format_project_summary(&validated_project, &summary);
+                println!("{}", formatted_output);
             }
         }
         Ok(())
