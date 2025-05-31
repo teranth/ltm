@@ -66,6 +66,12 @@ fn get_icon(section: &str) -> &str {
         .unwrap_or("")
 }
 
+/// Get status with symbol but without colors (for table display)
+fn get_status_display(status: &str) -> String {
+    let symbol = get_status_symbol(status);
+    format!("{} {}", symbol, status)
+}
+
 /// Colorize status based on status type
 pub fn colorize_status(status: &str) -> ColoredString {
     let symbol = get_status_symbol(status);
@@ -123,7 +129,7 @@ pub fn format_ticket_list(tickets: &[Ticket]) -> String {
             id: ticket.id.to_string(),
             project: truncate_text(&ticket.project, 15),
             name: truncate_text(&ticket.name, 25),
-            status: colorize_status(&ticket.status).to_string(),
+            status: get_status_display(&ticket.status),
             updated: format_timestamp(&ticket.updated_at),
         })
         .collect();
