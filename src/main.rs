@@ -1,6 +1,9 @@
 mod commands;
 mod db;
 mod models;
+mod interactive;
+mod suggestions;
+mod feedback;
 
 use anyhow::Result;
 use clap::Parser;
