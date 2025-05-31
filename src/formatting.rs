@@ -30,6 +30,7 @@ const STATUS_SYMBOLS: &[(&str, &str)] = &[
     ("cancelled", "✗"),
     ("completed", "✓"),
     ("done", "✓"),
+    ("wontfix", "⊘"),
 ];
 
 /// Icons for different sections
@@ -88,6 +89,7 @@ pub fn colorize_status(status: &str) -> ColoredString {
         "blocked" => text.bright_yellow(),
         "closed" | "completed" | "done" => text.green(),
         "cancelled" => text.bright_black(),
+        "wontfix" => text.bright_magenta(),
         _ => text.normal(),
     }
 }
@@ -302,17 +304,18 @@ pub fn format_project_summary(project: &str, summary: &ProjectSummary) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
     
     fn create_test_ticket() -> Ticket {
+        let timestamp = DateTime::from_timestamp(1642694400, 0).unwrap().naive_utc();
         Ticket {
             id: 1,
             project: "test_project".to_string(),
             name: "Test ticket".to_string(),
             description: "A test description".to_string(),
             status: "open".to_string(),
-            created_at: NaiveDateTime::from_timestamp_opt(1642694400, 0).unwrap(),
-            updated_at: NaiveDateTime::from_timestamp_opt(1642694400, 0).unwrap(),
+            created_at: timestamp,
+            updated_at: timestamp,
         }
     }
     
@@ -321,6 +324,7 @@ mod tests {
         assert_eq!(get_status_symbol("open"), "●");
         assert_eq!(get_status_symbol("closed"), "✓");
         assert_eq!(get_status_symbol("in-progress"), "⚠");
+        assert_eq!(get_status_symbol("wontfix"), "⊘");
         assert_eq!(get_status_symbol("unknown"), "○");
     }
     
