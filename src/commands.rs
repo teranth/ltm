@@ -5,6 +5,7 @@ use edit::edit;
 use std::collections::HashMap;
 
 use crate::db::Database;
+use crate::formatting::{format_ticket_list, format_ticket_details, format_project_summary};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -127,29 +128,15 @@ impl CommandHandler {
             }
             Commands::List { project } => {
                 let tickets = self.db.list_tickets(project.as_deref()).await?;
-                for ticket in tickets {
-                    println!(
-                        "ID: {}, Project: {}, Name: {}, Status: {}",
-                        ticket.id, ticket.project, ticket.name, ticket.status
-                    );
-                }
+                let formatted_output = format_ticket_list(&tickets);
+                println!("{}", formatted_output);
             }
             Commands::Show { ticket_id } => {
                 if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
-                    println!("Ticket Details:");
-                    println!("ID: {}", ticket.id);
-                    println!("Project: {}", ticket.project);
-                    println!("Name: {}", ticket.name);
-                    println!("Status: {}", ticket.status);
-                    println!("Description: {}", ticket.description);
-                    println!("Created: {}", ticket.created_at);
-                    println!("Updated: {}", ticket.updated_at);
-
-                    println!("\nComments:");
                     let comments = self.db.get_comments(ticket_id).await?;
-                    for comment in comments {
-                        println!("[{}] {}", comment.created_at, comment.content);
-                    }
+                    let time_logs = vec![]; // TODO: Add get_time_logs method to database
+                    let formatted_output = format_ticket_details(&ticket, &comments, &time_logs);
+                    println!("{}", formatted_output);
                 } else {
                     println!("Ticket {} not found", ticket_id);
                 }
@@ -198,11 +185,8 @@ impl CommandHandler {
             }
             Commands::Proj { project } => {
                 let summary = self.db.get_project_summary(&project).await?;
-                println!("Project Summary for {}:", project);
-                println!("Total Tickets: {}", summary.total_tickets);
-                println!("Open Tickets: {}", summary.open_tickets);
-                println!("Closed Tickets: {}", summary.closed_tickets);
-                println!("Total Time: {:.2} hours", summary.total_time_hours);
+                let formatted_output = format_project_summary(&project, &summary);
+                println!("{}", formatted_output);
             }
         }
         Ok(())
