@@ -298,17 +298,18 @@ pub fn format_project_summary(project: &str, summary: &ProjectSummary) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
     
     fn create_test_ticket() -> Ticket {
+        let timestamp = DateTime::from_timestamp(1642694400, 0).unwrap().naive_utc();
         Ticket {
             id: 1,
             project: "test_project".to_string(),
             name: "Test ticket".to_string(),
             description: "A test description".to_string(),
             status: "open".to_string(),
-            created_at: NaiveDateTime::from_timestamp_opt(1642694400, 0).unwrap(),
-            updated_at: NaiveDateTime::from_timestamp_opt(1642694400, 0).unwrap(),
+            created_at: timestamp,
+            updated_at: timestamp,
         }
     }
     
