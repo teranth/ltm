@@ -2,6 +2,7 @@ mod commands;
 mod db;
 mod formatting;
 mod models;
+mod validation;
 
 use anyhow::Result;
 use clap::Parser;

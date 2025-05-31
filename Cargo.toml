@@ -27,6 +27,9 @@ tabled = "0.14"
 colored = "2.0"
 unicode-width = "0.1"
 terminal_size = "0.3"
+regex = "1.10"
+strsim = "0.10"
+thiserror = "1.0"
 
 [dev-dependencies]
 tempfile = "3.8"
