@@ -100,6 +100,7 @@ pub fn validate_status(status: &str) -> Result<String, ValidationError> {
         "blocked",
         "closed",
         "cancelled",
+        "wontfix",
     ];
 
     let lowercase_status = status.to_lowercase();
@@ -247,6 +248,7 @@ mod tests {
         assert!(validate_status("blocked").is_ok());
         assert!(validate_status("closed").is_ok());
         assert!(validate_status("cancelled").is_ok());
+        assert!(validate_status("wontfix").is_ok());
         
         // Case insensitive
         assert!(validate_status("OPEN").is_ok());

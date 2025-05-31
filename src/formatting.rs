@@ -30,6 +30,7 @@ const STATUS_SYMBOLS: &[(&str, &str)] = &[
     ("cancelled", "✗"),
     ("completed", "✓"),
     ("done", "✓"),
+    ("wontfix", "⊘"),
 ];
 
 /// Icons for different sections
@@ -82,6 +83,7 @@ pub fn colorize_status(status: &str) -> ColoredString {
         "blocked" => text.bright_yellow(),
         "closed" | "completed" | "done" => text.green(),
         "cancelled" => text.bright_black(),
+        "wontfix" => text.bright_magenta(),
         _ => text.normal(),
     }
 }
@@ -315,6 +317,7 @@ mod tests {
         assert_eq!(get_status_symbol("open"), "●");
         assert_eq!(get_status_symbol("closed"), "✓");
         assert_eq!(get_status_symbol("in-progress"), "⚠");
+        assert_eq!(get_status_symbol("wontfix"), "⊘");
         assert_eq!(get_status_symbol("unknown"), "○");
     }
     

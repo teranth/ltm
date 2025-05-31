@@ -234,6 +234,7 @@ Valid statuses include:
 - `blocked` - Blocked by external dependencies
 - `closed` - Completed tickets
 - `cancelled` - Cancelled tickets
+- `wontfix` - Will not be fixed
 
 ### Content Length Limits
 
