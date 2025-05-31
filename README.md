@@ -9,6 +9,8 @@ A command-line tool for managing tickets and tracking time spent on projects. Bu
 - ✅ Track time spent on tickets (manual and start/stop)
 - ✅ Add comments to tickets
 - ✅ View project summaries with statistics
+- ✅ Beautiful formatted output with colors and icons
+- ✅ Comprehensive input validation with helpful error messages
 - ✅ All data stored locally in SQLite
 - ✅ Fast and lightweight CLI interface
 - ✅ Comprehensive test coverage
@@ -91,7 +93,7 @@ Create a new ticket:
 
 ```bash
 # With description
-ltm add <project> <ticketname> [description]
+ltm add <project> <name> [description]
 
 # Examples:
 ltm add webapp "Fix login bug" "Users can't login with special characters"
@@ -114,7 +116,7 @@ ltm list webapp
 Show ticket details:
 
 ```bash
-ltm show <ticketid>
+ltm show <ticket_id>
 
 # Example:
 ltm show 1
@@ -123,27 +125,27 @@ ltm show 1
 Update ticket status:
 
 ```bash
-ltm status <ticketid> <status>
+ltm status <ticket_id> <status>
 
 # Examples:
-ltm status 1 "in_progress"
-ltm status 1 "testing"
-ltm status 1 "done"
+ltm status 1 in-progress
+ltm status 1 testing
+ltm status 1 closed
 ```
 
-Close a ticket:
+Close a ticket (alias for status update):
 
 ```bash
-ltm close <ticketid> <status>
+ltm close <ticket_id> <status>
 
 # Example:
-ltm close 1 "completed"
+ltm close 1 completed
 ```
 
 Delete a ticket:
 
 ```bash
-ltm delete <ticketid>
+ltm delete <ticket_id>
 
 # Example:
 ltm delete 1
@@ -154,7 +156,7 @@ ltm delete 1
 Add comments to tickets:
 
 ```bash
-ltm comment <ticketid> <comment>
+ltm comment <ticket_id> <comment>
 
 # Examples:
 ltm comment 1 "Fixed the authentication issue"
@@ -166,7 +168,7 @@ ltm comment 1 "Need to test on mobile devices"
 Manual time logging:
 
 ```bash
-ltm log <ticketid> <hours> <minutes>
+ltm log <ticket_id> <hours> <minutes>
 
 # Examples:
 ltm log 1 2 30    # Log 2 hours 30 minutes
@@ -178,10 +180,10 @@ Start/stop time tracking:
 
 ```bash
 # Start tracking time
-ltm log <ticketid> --start
+ltm log <ticket_id> --start
 
 # Stop tracking time (automatically calculates duration)
-ltm log <ticketid> --end
+ltm log <ticket_id> --end
 
 # Example workflow:
 ltm log 1 --start
@@ -206,6 +208,55 @@ This shows:
 - Number of open tickets
 - Number of closed tickets
 - Total time logged
+
+## Validation and Error Handling
+
+The application includes comprehensive input validation:
+
+### Ticket IDs
+
+- Must be positive integers
+- Must reference existing tickets
+
+### Project Names
+
+- 1-50 characters
+- Only letters, numbers, hyphens, and underscores allowed
+- Examples: `webapp`, `my-project`, `client_work`
+
+### Status Values
+
+Valid statuses include:
+
+- `open` - New tickets
+- `in-progress` - Currently being worked on
+- `testing` - Under testing
+- `blocked` - Blocked by external dependencies
+- `closed` - Completed tickets
+- `cancelled` - Cancelled tickets
+
+### Content Length Limits
+
+- **Ticket names**: 1-100 characters
+- **Descriptions**: 1-2000 characters
+- **Comments**: 1-1000 characters
+
+### Time Values
+
+- Hours: 0-24
+- Minutes: 0-59
+
+The CLI provides helpful error messages with suggestions when validation fails.
+
+## Output Formatting
+
+The application features beautiful formatted output:
+
+- **Colored status indicators** with symbols (●, ⚠, ✓, etc.)
+- **Formatted tables** for ticket listings
+- **Rich ticket details** with structured boxes
+- **Icons and emojis** for better visual organization
+- **NO_COLOR environment variable** support for plain text output
 
 ## Data Storage
 
@@ -259,8 +310,8 @@ CREATE TABLE time_logs (
 # Run all tests
 SQLX_OFFLINE=true cargo test
 
-# Run specific test
-SQLX_OFFLINE=true cargo test test_ticket_crud_operations
+# Run specific test module
+SQLX_OFFLINE=true cargo test validation
 
 # Run tests with output
 SQLX_OFFLINE=true cargo test -- --nocapture
@@ -285,11 +336,14 @@ lticket/
 │   ├── lib.rs           # Library exports
 │   ├── commands.rs      # CLI command definitions and handlers
 │   ├── db.rs           # Database operations and connection
-│   └── models.rs       # Data structure definitions
+│   ├── models.rs       # Data structure definitions
+│   ├── validation.rs   # Input validation and error handling
+│   └── formatting.rs   # Output formatting and display
 ├── tests/
-│   └── integration_tests.rs  # Integration tests
+│   ├── integration_tests.rs           # Database and command integration tests
+│   └── validation_integration_tests.rs # Validation system tests
 ├── migrations/
-│   └── 20240320000000_initial.sql  # Database schema
+│   └── 20240320000000_initial.sql    # Database schema
 ├── design.md           # Project requirements
 ├── design_steps.md     # Feature checklist
 ├── architecture.md     # System architecture documentation
@@ -300,10 +354,12 @@ lticket/
 
 The application follows a layered architecture:
 
-1. **CLI Layer**: Command parsing and user interaction
-2. **Application Layer**: Business logic and command handling
-3. **Data Layer**: Database operations and data models
-4. **Storage Layer**: SQLite database
+1. **CLI Layer**: Command parsing and user interaction (`commands.rs`)
+2. **Validation Layer**: Input validation and error handling (`validation.rs`)
+3. **Formatting Layer**: Output formatting and display (`formatting.rs`)
+4. **Application Layer**: Business logic and command handling
+5. **Data Layer**: Database operations and data models (`db.rs`, `models.rs`)
+6. **Storage Layer**: SQLite database
 
 For detailed architecture information, see [architecture.md](architecture.md).
 
@@ -325,7 +381,7 @@ ltm log 1 --start
 ltm comment 1 "Started implementing JWT middleware"
 
 # Update status
-ltm status 1 "in_progress"
+ltm status 1 in-progress
 
 # Stop time tracking
 ltm log 1 --end
@@ -334,7 +390,7 @@ ltm log 1 --end
 ltm log 1 1 30  # 1.5 hours additional work
 
 # Close the ticket
-ltm close 1 "completed"
+ltm close 1 completed
 
 # View project summary
 ltm proj webapp
@@ -365,10 +421,12 @@ ltm proj devops
 1. **Database not found**: Run `ltm init` to initialize the database
 2. **Permission errors**: Ensure `~/.ltm/` directory is writable
 3. **Build errors**: Make sure you have Rust and SQLite development libraries installed
+4. **Validation errors**: Check the error messages for specific requirements and examples
 
 ### Environment Variables
 
 - `SQLX_OFFLINE=true`: Disable compile-time SQL checking (required for building)
+- `NO_COLOR=1`: Disable colored output for plain text
 
 ## Contributing
 
@@ -385,12 +443,28 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Dependencies
+
+Key dependencies include:
+
+- **clap**: Command-line argument parsing
+- **sqlx**: Async SQL toolkit with compile-time checked queries
+- **tokio**: Async runtime
+- **anyhow**: Error handling
+- **chrono**: Date and time handling
+- **tabled**: Table formatting for output
+- **colored**: Terminal color support
+- **regex**: Pattern matching for validation
+- **strsim**: String similarity for error suggestions
+
 ## Roadmap
 
 - [ ] Export functionality (JSON, CSV)
 - [ ] Configuration file support
-- [ ] Better CLI output formatting (tables, colors)
+- [ ] Time log visualization and reporting
 - [ ] Web dashboard interface
 - [ ] Team collaboration features
 - [ ] Integration with external tools (Git, IDEs)
 - [ ] Backup and sync capabilities
+- [ ] Advanced filtering and search
+- [ ] Time tracking analytics
