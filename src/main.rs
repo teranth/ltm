@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod models;
+mod validation;
 
 use anyhow::Result;
 use clap::Parser;
