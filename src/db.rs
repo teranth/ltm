@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use dirs::home_dir;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
+use sqlx::Row;
 use std::str::FromStr;
 
 use crate::models::{Comment, ProjectSummary, Ticket};
@@ -104,13 +105,10 @@ impl Database {
     }
 
     pub async fn get_ticket(&self, id: i64) -> Result<Option<Ticket>> {
-        let ticket = sqlx::query_as!(
-            Ticket,
-            r#"
-            SELECT * FROM tickets WHERE id = ?
-            "#,
-            id
+        let ticket = sqlx::query_as::<_, Ticket>(
+            "SELECT id, project, name, description, status, created_at, updated_at FROM tickets WHERE id = ?"
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -119,21 +117,15 @@ impl Database {
 
     pub async fn list_tickets(&self, project: Option<&str>) -> Result<Vec<Ticket>> {
         let tickets = if let Some(project) = project {
-            sqlx::query_as!(
-                Ticket,
-                r#"
-                SELECT * FROM tickets WHERE project = ? ORDER BY created_at DESC
-                "#,
-                project
+            sqlx::query_as::<_, Ticket>(
+                "SELECT id, project, name, description, status, created_at, updated_at FROM tickets WHERE project = ? ORDER BY created_at DESC"
             )
+            .bind(project)
             .fetch_all(&self.pool)
             .await?
         } else {
-            sqlx::query_as!(
-                Ticket,
-                r#"
-                SELECT * FROM tickets ORDER BY created_at DESC
-                "#
+            sqlx::query_as::<_, Ticket>(
+                "SELECT id, project, name, description, status, created_at, updated_at FROM tickets ORDER BY created_at DESC"
             )
             .fetch_all(&self.pool)
             .await?
@@ -183,13 +175,10 @@ impl Database {
     }
 
     pub async fn get_comments(&self, ticket_id: i64) -> Result<Vec<Comment>> {
-        let comments = sqlx::query_as!(
-            Comment,
-            r#"
-            SELECT * FROM comments WHERE ticket_id = ? ORDER BY created_at DESC
-            "#,
-            ticket_id
+        let comments = sqlx::query_as::<_, Comment>(
+            "SELECT id, ticket_id, content, created_at FROM comments WHERE ticket_id = ? ORDER BY created_at DESC"
         )
+        .bind(ticket_id)
         .fetch_all(&self.pool)
         .await?;
 
@@ -223,34 +212,34 @@ impl Database {
     }
 
     pub async fn get_project_summary(&self, project: &str) -> Result<ProjectSummary> {
-        let summary = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT 
                 COUNT(*) as total_tickets,
                 SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_tickets,
                 SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_tickets,
-                COALESCE(SUM(tl.hours + tl.minutes / 60.0), 0) as total_time_hours
+                COALESCE(SUM(tl.hours + tl.minutes / 60.0), 0.0) as total_time_hours
             FROM tickets t
             LEFT JOIN time_logs tl ON t.id = tl.ticket_id
             WHERE t.project = ?
             GROUP BY t.project
-            "#,
-            project
+            "#
         )
-        .fetch_one(&self.pool)
-        .await;
+        .bind(project)
+        .fetch_optional(&self.pool)
+        .await?;
 
-        match summary {
-            Ok(summary) => {
+        match row {
+            Some(row) => {
                 Ok(ProjectSummary {
                     project: project.to_string(),
-                    total_tickets: summary.total_tickets,
-                    open_tickets: summary.open_tickets as i64,
-                    closed_tickets: summary.closed_tickets as i64,
-                    total_time_hours: summary.total_time_hours,
+                    total_tickets: row.get::<i64, _>(0),
+                    open_tickets: row.get::<Option<i64>, _>(1).unwrap_or(0),
+                    closed_tickets: row.get::<Option<i64>, _>(2).unwrap_or(0),
+                    total_time_hours: row.get::<f64, _>(3),
                 })
             }
-            Err(_) => {
+            None => {
                 // Return empty summary for non-existent projects
                 Ok(ProjectSummary {
                     project: project.to_string(),

@@ -3,6 +3,9 @@ mod db;
 mod formatting;
 mod models;
 mod validation;
+mod interactive;
+mod suggestions;
+mod feedback;
 
 use anyhow::Result;
 use clap::Parser;
