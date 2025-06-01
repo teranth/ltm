@@ -1,6 +1,8 @@
 pub mod commands;
 pub mod db;
+pub mod formatting;
 pub mod models;
+pub mod validation;
 pub mod interactive;
 pub mod suggestions;
-pub mod feedback; 
+pub mod feedback;

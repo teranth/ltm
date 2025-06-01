@@ -1,6 +1,8 @@
 mod commands;
 mod db;
+mod formatting;
 mod models;
+mod validation;
 mod interactive;
 mod suggestions;
 mod feedback;
