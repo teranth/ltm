@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::db::Database;
 use crate::formatting::{format_ticket_list, format_ticket_details};
+use crate::json_formatting::{format_ticket_list_json, format_ticket_details_json, format_project_summary_json};
 use crate::validation::{
     format_validation_error, validate_content_length, validate_project_name,
     validate_status, validate_ticket_id, ContentType, ValidationError,
@@ -66,11 +67,17 @@ enum Commands {
     List {
         /// Project name (optional)
         project: Option<String>,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
     /// Show ticket details
     Show {
         /// Ticket ID
         ticket_id: String,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
     /// Add a comment to a ticket
     Comment {
@@ -98,6 +105,9 @@ enum Commands {
     Proj {
         /// Project name
         project: String,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -247,7 +257,7 @@ impl CommandHandler {
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
                 }
             }
-            Commands::List { project } => {
+            Commands::List { project, json } => {
                 // Validate project name if provided
                 let validated_project = if let Some(ref proj) = project {
                     Some(validate_project_name(proj)?)
@@ -259,16 +269,21 @@ impl CommandHandler {
                 let tickets = self.db.list_tickets(validated_project.as_deref()).await?;
                 pb.finish_and_clear();
                 
-                let formatted_output = format_ticket_list(&tickets);
-                println!("{}", formatted_output);
-                
-                if !tickets.is_empty() {
-                    feedback::show_success(&format!("Found {} ticket(s)", tickets.len()));
+                if json {
+                    let output = format_ticket_list_json(&tickets, validated_project.as_deref());
+                    println!("{}", output);
                 } else {
-                    feedback::show_info("No tickets found");
+                    let formatted_output = format_ticket_list(&tickets);
+                    println!("{}", formatted_output);
+                    
+                    if !tickets.is_empty() {
+                        feedback::show_success(&format!("Found {} ticket(s)", tickets.len()));
+                    } else {
+                        feedback::show_info("No tickets found");
+                    }
                 }
             }
-            Commands::Show { ticket_id } => {
+            Commands::Show { ticket_id, json } => {
                 // Validate inputs
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
 
@@ -278,9 +293,14 @@ impl CommandHandler {
                     let time_logs = vec![]; // TODO: Add get_time_logs method to database
                     pb.finish_and_clear();
                     
-                    let formatted_output = format_ticket_details(&ticket, &comments, &time_logs);
-                    println!("{}", formatted_output);
-                    feedback::show_success(&format!("Details for ticket {} ('{}')", validated_ticket_id, ticket.name));
+                    if json {
+                        let output = format_ticket_details_json(&ticket, &comments, &time_logs);
+                        println!("{}", output);
+                    } else {
+                        let formatted_output = format_ticket_details(&ticket, &comments, &time_logs);
+                        println!("{}", formatted_output);
+                        feedback::show_success(&format!("Details for ticket {} ('{}')", validated_ticket_id, ticket.name));
+                    }
                 } else {
                     pb.finish_and_clear();
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
@@ -356,7 +376,7 @@ impl CommandHandler {
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
                 }
             }
-            Commands::Proj { project } => {
+            Commands::Proj { project, json } => {
                 // Validate project name
                 let validated_project = validate_project_name(&project)?;
                 
@@ -364,20 +384,25 @@ impl CommandHandler {
                 let summary = self.db.get_project_summary(&validated_project).await?;
                 pb.finish_and_clear();
                 
-                if summary.total_tickets == 0 {
-                    feedback::show_info(&format!("No tickets found for project '{}'", validated_project));
-                    
-                    // Suggest similar project names
-                    let suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
-                    if let Some(suggestion_msg) = suggestions::format_suggestions(&validated_project, &suggestions, "project") {
-                        feedback::show_thinking(&suggestion_msg);
-                    }
+                if json {
+                    let output = format_project_summary_json(&validated_project, &summary);
+                    println!("{}", output);
                 } else {
-                    feedback::show_success(&format!("📊 Project Summary for '{}':", validated_project));
-                    println!("   📋 Total Tickets: {}", summary.total_tickets);
-                    println!("   🟢 Open Tickets: {}", summary.open_tickets);
-                    println!("   🔴 Closed Tickets: {}", summary.closed_tickets);
-                    println!("   ⏱️  Total Time: {:.2} hours", summary.total_time_hours);
+                    if summary.total_tickets == 0 {
+                        feedback::show_info(&format!("No tickets found for project '{}'", validated_project));
+                        
+                        // Suggest similar project names
+                        let suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
+                        if let Some(suggestion_msg) = suggestions::format_suggestions(&validated_project, &suggestions, "project") {
+                            feedback::show_thinking(&suggestion_msg);
+                        }
+                    } else {
+                        feedback::show_success(&format!("📊 Project Summary for '{}':", validated_project));
+                        println!("   📋 Total Tickets: {}", summary.total_tickets);
+                        println!("   🟢 Open Tickets: {}", summary.open_tickets);
+                        println!("   🔴 Closed Tickets: {}", summary.closed_tickets);
+                        println!("   ⏱️  Total Time: {:.2} hours", summary.total_time_hours);
+                    }
                 }
             }
         }
