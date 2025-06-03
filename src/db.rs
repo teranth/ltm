@@ -251,4 +251,31 @@ impl Database {
             }
         }
     }
+
+    pub async fn get_time_logs(&self, ticket_id: i64) -> Result<Vec<crate::models::TimeLog>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT id, ticket_id, hours, minutes, started_at, ended_at, created_at 
+            FROM time_logs WHERE ticket_id = ? ORDER BY created_at DESC
+            "#
+        )
+        .bind(ticket_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut time_logs = Vec::new();
+        for row in rows {
+            time_logs.push(crate::models::TimeLog {
+                id: row.get("id"),
+                ticket_id: row.get("ticket_id"),
+                hours: row.get("hours"),
+                minutes: row.get("minutes"),
+                started_at: row.get("started_at"),
+                ended_at: row.get("ended_at"),
+                created_at: row.get("created_at"),
+            });
+        }
+
+        Ok(time_logs)
+    }
 } 

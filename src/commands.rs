@@ -290,7 +290,7 @@ impl CommandHandler {
                 let pb = feedback::create_progress_bar("Loading ticket details");
                 if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
                     let comments = self.db.get_comments(validated_ticket_id).await?;
-                    let time_logs = vec![]; // TODO: Add get_time_logs method to database
+                    let time_logs = self.db.get_time_logs(validated_ticket_id).await?;
                     pb.finish_and_clear();
                     
                     if json {
