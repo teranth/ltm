@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod formatting;
+mod json_formatting;
 mod models;
 mod validation;
 mod interactive;

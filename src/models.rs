@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Ticket {
     pub id: i64,
     pub project: String,
@@ -13,7 +13,7 @@ pub struct Ticket {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Comment {
     pub id: i64,
     pub ticket_id: i64,
@@ -21,7 +21,7 @@ pub struct Comment {
     pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct TimeLog {
     pub id: i64,
     pub ticket_id: i64,
@@ -32,7 +32,7 @@ pub struct TimeLog {
     pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProjectSummary {
     pub project: String,
     pub total_tickets: i64,

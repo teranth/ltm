@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod formatting;
+pub mod json_formatting;
 pub mod models;
 pub mod validation;
 pub mod interactive;
