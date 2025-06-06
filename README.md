@@ -27,8 +27,8 @@ A command-line tool for managing tickets and tracking time spent on projects. Bu
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/lticket.git
-cd lticket
+git clone https://github.com/teranth/ltm.git
+cd ltm
 ```
 
 2. Build the project:

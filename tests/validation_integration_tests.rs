@@ -39,8 +39,8 @@ mod validation_integration_tests {
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
-        // Test invalid status validation
-        let cli = Cli::try_parse_from(&["ltm", "status", "1", "invalid_status"]).unwrap();
+        // Test invalid status validation using new command structure
+        let cli = Cli::try_parse_from(&["ltm", "update", "status", "1", "invalid_status", "--force"]).unwrap();
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
@@ -63,8 +63,8 @@ mod validation_integration_tests {
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
-        // Test updating status with valid status
-        let cli = Cli::try_parse_from(&["ltm", "status", "1", "in-progress"]).unwrap();
+        // Test updating status with valid status using new command structure
+        let cli = Cli::try_parse_from(&["ltm", "update", "status", "1", "in-progress", "--force"]).unwrap();
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
@@ -83,7 +83,7 @@ mod validation_integration_tests {
         // Should succeed because we handle ValidationError gracefully
         assert!(result.is_ok());
 
-        let cli = Cli::try_parse_from(&["ltm", "comment", "999", "test comment"]).unwrap();
+        let cli = Cli::try_parse_from(&["ltm", "comment", "add", "999", "test comment"]).unwrap();
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
