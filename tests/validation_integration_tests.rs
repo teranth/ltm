@@ -12,13 +12,13 @@ mod validation_integration_tests {
     async fn create_test_database() -> Result<Database> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?
             .create_if_missing(true);
-        
+
         let pool = SqlitePool::connect_with(options).await?;
-        
+
         sqlx::migrate!("./migrations")
             .run(&pool)
             .await?;
-        
+
         Ok(Database::from_pool(pool))
     }
 
@@ -131,6 +131,139 @@ mod validation_integration_tests {
         assert!(result.is_ok());
 
         let cli = Cli::try_parse_from(&["ltm", "log", "1", "--end"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_new_time_tracking_commands() -> Result<()> {
+        let database = create_test_database().await?;
+        database.init_db().await?;
+        let mut handler = CommandHandler::new(database);
+
+        // First create a ticket
+        let cli = Cli::try_parse_from(&["ltm", "add", "test-project", "test-ticket", "description"]).unwrap();
+        handler.handle_command(cli).await?;
+
+        // Test time start command
+        let cli = Cli::try_parse_from(&["ltm", "time", "start", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time pause command
+        let cli = Cli::try_parse_from(&["ltm", "time", "pause", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time resume command
+        let cli = Cli::try_parse_from(&["ltm", "time", "resume", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time pause again
+        let cli = Cli::try_parse_from(&["ltm", "time", "pause", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time stop command (should work even when paused)
+        let cli = Cli::try_parse_from(&["ltm", "time", "stop", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time start again
+        let cli = Cli::try_parse_from(&["ltm", "time", "start", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time cancel command
+        let cli = Cli::try_parse_from(&["ltm", "time", "cancel", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test active timers command
+        let cli = Cli::try_parse_from(&["ltm", "active"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test time log with duration string
+        let cli = Cli::try_parse_from(&["ltm", "time", "log", "1", "2h30m"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test edge cases
+
+        // Test pausing a non-existent timer
+        let cli = Cli::try_parse_from(&["ltm", "time", "pause", "999"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok()); // Should show warning but not error
+
+        // Test resuming a non-existent timer
+        let cli = Cli::try_parse_from(&["ltm", "time", "resume", "999"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok()); // Should show warning but not error
+
+        // Start a timer for edge case tests
+        let cli = Cli::try_parse_from(&["ltm", "time", "start", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test resuming a timer that's not paused
+        let cli = Cli::try_parse_from(&["ltm", "time", "resume", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok()); // Should show warning but not error
+
+        // Pause the timer
+        let cli = Cli::try_parse_from(&["ltm", "time", "pause", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test pausing a timer that's already paused
+        let cli = Cli::try_parse_from(&["ltm", "time", "pause", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok()); // Should show warning but not error
+
+        // Clean up
+        let cli = Cli::try_parse_from(&["ltm", "time", "cancel", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_workflow_commands() -> Result<()> {
+        let database = create_test_database().await?;
+        database.init_db().await?;
+        let mut handler = CommandHandler::new(database);
+
+        // First create a ticket
+        let cli = Cli::try_parse_from(&["ltm", "add", "test-project", "test-ticket", "description"]).unwrap();
+        handler.handle_command(cli).await?;
+
+        // Test open command
+        let cli = Cli::try_parse_from(&["ltm", "open", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test complete command
+        let cli = Cli::try_parse_from(&["ltm", "complete", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test block command
+        let cli = Cli::try_parse_from(&["ltm", "block", "1"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test block command with reason
+        let cli = Cli::try_parse_from(&["ltm", "block", "1", "Waiting for API"]).unwrap();
+        let result = handler.handle_command(cli).await;
+        assert!(result.is_ok());
+
+        // Test start command (sets status to in-progress and starts timer)
+        let cli = Cli::try_parse_from(&["ltm", "start", "1"]).unwrap();
         let result = handler.handle_command(cli).await;
         assert!(result.is_ok());
 
