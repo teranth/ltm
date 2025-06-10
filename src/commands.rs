@@ -26,52 +26,52 @@ pub struct Cli {
 enum Commands {
     /// Initialize the database
     Init,
-    
+
     // New hierarchical commands
     /// Ticket operations
     Ticket {
         #[command(subcommand)]
         action: TicketAction,
     },
-    
+
     /// Project operations
     Project {
         #[command(subcommand)]
         action: ProjectAction,
     },
-    
+
     /// Comment operations
     Comment {
         #[command(subcommand)]
         action: CommentAction,
     },
-    
+
     /// Time tracking operations
     Time {
         #[command(subcommand)]
         action: TimeAction,
     },
-    
+
     /// Update ticket properties
     #[command(alias = "set")]
     Update {
         #[command(subcommand)]
         target: UpdateTarget,
     },
-    
+
     /// Quick status shortcuts
     /// Set ticket status to open
     Open {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Mark ticket as completed
     Complete {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Mark ticket as blocked
     Block {
         /// Ticket ID
@@ -79,20 +79,20 @@ enum Commands {
         /// Reason for blocking (optional)
         reason: Option<String>,
     },
-    
+
     /// Start working on a ticket (sets in-progress + starts timer)
     Start {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// List all projects
     Projects,
-    
+
     /// Show active timers
     #[command(alias = "timer")]
     Active,
-    
+
     // Legacy commands with backward compatibility
     /// [LEGACY] Add a new ticket (use 'ticket create' instead)
     Add {
@@ -103,7 +103,7 @@ enum Commands {
         /// Ticket description (optional)
         description: Option<String>,
     },
-    
+
     /// Close a ticket (improved - defaults to 'closed' status)
     Close {
         /// Ticket ID
@@ -114,7 +114,7 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// [DEPRECATED] Update ticket status (use 'update status' instead)
     #[command(hide = true)]
     Status {
@@ -126,7 +126,7 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// Delete a ticket
     #[command(alias = "rm")]
     Delete {
@@ -136,7 +136,7 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// List tickets
     #[command(alias = "ls")]
     List {
@@ -152,7 +152,7 @@ enum Commands {
         #[arg(long, default_value = "updated")]
         sort: String,
     },
-    
+
     /// Show ticket details
     #[command(alias = "view")]
     Show {
@@ -165,9 +165,9 @@ enum Commands {
         #[arg(long)]
         full: bool,
     },
-    
 
-    
+
+
     /// [LEGACY] Log time spent on a ticket (use 'time log' instead)
     Log {
         /// Ticket ID
@@ -183,7 +183,7 @@ enum Commands {
         #[arg(long)]
         end: bool,
     },
-    
+
     /// [DEPRECATED] Show project summary (use 'project show' instead)
     #[command(hide = true)]
     Proj {
@@ -207,7 +207,7 @@ enum TicketAction {
         /// Ticket description (optional)
         description: Option<String>,
     },
-    
+
     /// List tickets with filtering options
     #[command(alias = "ls")]
     List {
@@ -221,7 +221,7 @@ enum TicketAction {
         #[arg(long, default_value = "updated")]
         sort: String,
     },
-    
+
     /// Show ticket details
     #[command(alias = "view", alias = "info")]
     Show {
@@ -231,7 +231,7 @@ enum TicketAction {
         #[arg(long)]
         full: bool,
     },
-    
+
     /// Update ticket properties
     #[command(alias = "edit")]
     Update {
@@ -242,7 +242,7 @@ enum TicketAction {
         /// New value
         value: String,
     },
-    
+
     /// Delete a ticket
     #[command(alias = "rm", alias = "remove")]
     Delete {
@@ -252,7 +252,7 @@ enum TicketAction {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// Move ticket to different project
     #[command(alias = "mv")]
     Move {
@@ -261,7 +261,7 @@ enum TicketAction {
         /// New project name
         project: String,
     },
-    
+
     /// Copy ticket
     #[command(alias = "cp")]
     Copy {
@@ -280,17 +280,17 @@ enum ProjectAction {
         /// Project name
         project: String,
     },
-    
+
     /// List all projects
     #[command(alias = "ls")]
     List,
-    
+
     /// Show detailed project summary
     Summary {
         /// Project name
         project: String,
     },
-    
+
     /// Show project statistics
     Stats {
         /// Project name (optional, shows all if not specified)
@@ -308,20 +308,20 @@ enum CommentAction {
         /// Comment content
         content: String,
     },
-    
+
     /// List comments for a ticket
     #[command(alias = "ls")]
     List {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Show specific comment
     Show {
         /// Comment ID
         comment_id: String,
     },
-    
+
     /// Update a comment
     #[command(alias = "edit")]
     Update {
@@ -330,7 +330,7 @@ enum CommentAction {
         /// New content
         content: String,
     },
-    
+
     /// Delete a comment
     #[command(alias = "rm")]
     Delete {
@@ -347,14 +347,33 @@ enum TimeAction {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Stop time tracking
     #[command(alias = "end")]
     Stop {
         /// Ticket ID (optional, stops all if not specified)
         ticket_id: Option<String>,
     },
-    
+
+    /// Cancel time tracking without logging time
+    #[command(alias = "abort")]
+    Cancel {
+        /// Ticket ID (optional, cancels all if not specified)
+        ticket_id: Option<String>,
+    },
+
+    /// Pause time tracking
+    Pause {
+        /// Ticket ID
+        ticket_id: String,
+    },
+
+    /// Resume time tracking
+    Resume {
+        /// Ticket ID
+        ticket_id: String,
+    },
+
     /// Log time manually
     #[command(alias = "add")]
     Log {
@@ -363,24 +382,24 @@ enum TimeAction {
         /// Duration (e.g., "2h30m", "1.5h", "90m")
         duration: String,
     },
-    
+
     /// List time logs for a ticket
     #[command(alias = "ls")]
     List {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Show active timers
     #[command(alias = "status")]
     Active,
-    
+
     /// Show time summary
     Summary {
         /// Ticket ID
         ticket_id: String,
     },
-    
+
     /// Update a time entry
     #[command(alias = "edit")]
     Update {
@@ -389,7 +408,7 @@ enum TimeAction {
         /// New duration
         duration: String,
     },
-    
+
     /// Delete a time entry
     #[command(alias = "rm")]
     Delete {
@@ -410,7 +429,7 @@ enum UpdateTarget {
         #[arg(long)]
         force: bool,
     },
-    
+
     /// Update ticket name
     Name {
         /// Ticket ID
@@ -418,7 +437,7 @@ enum UpdateTarget {
         /// New name
         name: String,
     },
-    
+
     /// Update ticket description
     Description {
         /// Ticket ID
@@ -426,7 +445,7 @@ enum UpdateTarget {
         /// New description (opens editor if not provided)
         description: Option<String>,
     },
-    
+
     /// Update ticket project
     Project {
         /// Ticket ID
@@ -436,9 +455,29 @@ enum UpdateTarget {
     },
 }
 
+pub struct TimeTrackingState {
+    start_time: DateTime<Utc>,
+    paused_at: Option<DateTime<Utc>>,
+    elapsed_time: Option<Duration>,
+}
+
+impl TimeTrackingState {
+    fn new(start_time: DateTime<Utc>) -> Self {
+        Self {
+            start_time,
+            paused_at: None,
+            elapsed_time: None,
+        }
+    }
+
+    fn is_paused(&self) -> bool {
+        self.paused_at.is_some()
+    }
+}
+
 pub struct CommandHandler {
     db: Database,
-    time_tracking: HashMap<i64, DateTime<Utc>>,
+    time_tracking: HashMap<i64, TimeTrackingState>,
 }
 
 impl CommandHandler {
@@ -459,7 +498,7 @@ impl CommandHandler {
 
     pub async fn handle_command(&mut self, cli: Cli) -> Result<()> {
         let result = self.handle_command_with_validation(cli).await;
-        
+
         // Convert ValidationError to user-friendly error message
         if let Err(e) = &result {
             if let Some(validation_error) = e.downcast_ref::<ValidationError>() {
@@ -467,7 +506,7 @@ impl CommandHandler {
                 return Ok(()); // Don't propagate the error, just print the message
             }
         }
-        
+
         result
     }
 
@@ -479,67 +518,67 @@ impl CommandHandler {
                 pb.finish_with_message("Database initialized");
                 feedback::show_celebration("Database initialized successfully!");
             }
-            
+
             // New hierarchical commands
             Commands::Ticket { action } => {
                 self.handle_ticket_action(action).await?;
             }
-            
+
             Commands::Project { action } => {
                 self.handle_project_action(action).await?;
             }
-            
+
             Commands::Comment { action } => {
                 self.handle_comment_action(action).await?;
             }
-            
+
             Commands::Time { action } => {
                 self.handle_time_action(action).await?;
             }
-            
+
             Commands::Update { target } => {
                 self.handle_update_target(target).await?;
             }
-            
+
             // Quick status shortcuts
             Commands::Open { ticket_id } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
-                self.update_ticket_status_internal(validated_ticket_id, "open", false).await?;
+                self.update_ticket_status_internal(validated_ticket_id, "open", true).await?;
             }
-            
+
             Commands::Complete { ticket_id } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
-                self.update_ticket_status_internal(validated_ticket_id, "completed", false).await?;
+                self.update_ticket_status_internal(validated_ticket_id, "completed", true).await?;
             }
-            
+
             Commands::Block { ticket_id, reason } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
-                self.update_ticket_status_internal(validated_ticket_id, "blocked", false).await?;
-                
+                self.update_ticket_status_internal(validated_ticket_id, "blocked", true).await?;
+
                 if let Some(reason_text) = reason {
                     let validated_content = validate_content_length(&reason_text, ContentType::Comment)?;
                     self.db.add_comment(validated_ticket_id, &format!("Blocked: {}", validated_content)).await?;
                     feedback::show_info("Added blocking reason as comment");
                 }
             }
-            
+
             Commands::Start { ticket_id } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
-                
+
                 // Set status to in-progress and start timer
-                self.update_ticket_status_internal(validated_ticket_id, "in-progress", false).await?;
-                self.time_tracking.insert(validated_ticket_id, Utc::now());
+                self.update_ticket_status_internal(validated_ticket_id, "in-progress", true).await?;
+                self.time_tracking.insert(validated_ticket_id, TimeTrackingState::new(Utc::now()));
                 feedback::show_success(&format!("Started working on ticket {} (status: in-progress, timer: started)", validated_ticket_id));
             }
-            
+
             Commands::Projects => {
                 self.handle_list_projects().await?;
             }
-            
+
             Commands::Active => {
                 self.handle_show_active_timers().await?;
             }
@@ -547,21 +586,21 @@ impl CommandHandler {
             Commands::Add { project, name, description } => {
                 feedback::show_warning("'ltm add' is deprecated. Use 'ltm ticket create' instead.");
                 feedback::show_info("Example: ltm ticket create project \"ticket name\" \"description\"");
-                
+
                 self.create_ticket_internal(project, name, description).await?;
             }
             Commands::Close { ticket_id, status, force } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 let final_status = status.as_deref().unwrap_or("closed");
                 let validated_status = validate_status(final_status)?;
-                
+
                 self.validate_ticket_exists(validated_ticket_id).await?;
                 self.update_ticket_status_internal(validated_ticket_id, &validated_status, force).await?;
             }
             Commands::Status { ticket_id, status, force } => {
                 feedback::show_warning("'ltm status' is deprecated. Use 'ltm update status' or 'ltm set status' instead.");
                 feedback::show_info("Example: ltm set status 1 closed");
-                
+
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 let validated_status = validate_status(&status)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
@@ -575,12 +614,12 @@ impl CommandHandler {
                 // Check if ticket exists for interactive confirmation
                 if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
                     let target = format!("ticket {} ('{}')", validated_ticket_id, ticket.name);
-                    
+
                     if !force && !interactive::confirm_destructive_action("delete", &target)? {
                         feedback::show_info("Operation cancelled");
                         return Ok(());
                     }
-                    
+
                     let pb = feedback::create_progress_bar("Deleting ticket");
                     self.db.delete_ticket(validated_ticket_id).await?;
                     pb.finish_with_message("Ticket deleted");
@@ -610,21 +649,34 @@ impl CommandHandler {
                 // Check if ticket exists for interactive feedback
                 if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
                     if start {
-                        self.time_tracking.insert(validated_ticket_id, Utc::now());
+                        self.time_tracking.insert(validated_ticket_id, TimeTrackingState::new(Utc::now()));
                         feedback::show_time_tracking_progress("Starting", validated_ticket_id).await;
                     } else if end {
-                        if let Some(start_time) = self.time_tracking.remove(&validated_ticket_id) {
+                        if let Some(state) = self.time_tracking.remove(&validated_ticket_id) {
                             let end_time = Utc::now();
-                            let duration = end_time - start_time;
-                            let hours = duration.num_hours() as i32;
-                            let minutes = (duration.num_minutes() % 60) as i32;
-                            
+                            let mut total_duration = if let Some(elapsed) = state.elapsed_time {
+                                elapsed
+                            } else {
+                                Duration::zero()
+                            };
+
+                            // If the timer is paused, use the paused_at time as the end time
+                            // Otherwise, calculate duration from start_time to now
+                            if let Some(paused_at) = state.paused_at {
+                                total_duration = total_duration + (paused_at - state.start_time);
+                            } else {
+                                total_duration = total_duration + (end_time - state.start_time);
+                            }
+
+                            let hours = total_duration.num_hours() as i32;
+                            let minutes = (total_duration.num_minutes() % 60) as i32;
+
                             let pb = feedback::create_progress_bar("Logging time");
                             self.db
-                                .add_time_log(validated_ticket_id, hours, minutes, Some(start_time), Some(end_time))
+                                .add_time_log(validated_ticket_id, hours, minutes, Some(state.start_time), Some(end_time))
                                 .await?;
                             pb.finish_with_message("Time logged");
-                            
+
                             feedback::show_celebration(&format!(
                                 "Logged {} hours and {} minutes for ticket {} ('{}')",
                                 hours, minutes, validated_ticket_id, ticket.name
@@ -638,7 +690,7 @@ impl CommandHandler {
                             .add_time_log(validated_ticket_id, hours, minutes, None, None)
                             .await?;
                         pb.finish_with_message("Time logged");
-                        
+
                         feedback::show_celebration(&format!(
                             "Logged {} hours and {} minutes for ticket {} ('{}')",
                             hours, minutes, validated_ticket_id, ticket.name
@@ -653,7 +705,7 @@ impl CommandHandler {
             Commands::Proj { project, json } => {
                 feedback::show_warning("'ltm proj' is deprecated. Use 'ltm project show' instead.");
                 feedback::show_info("Example: ltm project show myproject");
-                
+
                 self.show_project_summary_internal(&project, json).await?;
             }
         }
@@ -736,7 +788,7 @@ impl CommandHandler {
             TimeAction::Start { ticket_id } => {
                 let validated_ticket_id = validate_ticket_id(&ticket_id)?;
                 self.validate_ticket_exists(validated_ticket_id).await?;
-                self.time_tracking.insert(validated_ticket_id, Utc::now());
+                self.time_tracking.insert(validated_ticket_id, TimeTrackingState::new(Utc::now()));
                 feedback::show_time_tracking_progress("Starting", validated_ticket_id).await;
             }
             TimeAction::Stop { ticket_id } => {
@@ -746,6 +798,22 @@ impl CommandHandler {
                 } else {
                     self.stop_all_active_timers().await?;
                 }
+            }
+            TimeAction::Cancel { ticket_id } => {
+                if let Some(ticket_id_str) = ticket_id {
+                    let validated_ticket_id = validate_ticket_id(&ticket_id_str)?;
+                    self.cancel_time_tracking_internal(validated_ticket_id).await?;
+                } else {
+                    self.cancel_all_active_timers().await?;
+                }
+            }
+            TimeAction::Pause { ticket_id } => {
+                let validated_ticket_id = validate_ticket_id(&ticket_id)?;
+                self.pause_time_tracking_internal(validated_ticket_id).await?;
+            }
+            TimeAction::Resume { ticket_id } => {
+                let validated_ticket_id = validate_ticket_id(&ticket_id)?;
+                self.resume_time_tracking_internal(validated_ticket_id).await?;
             }
             TimeAction::Log { ticket_id, duration } => {
                 self.log_time_duration_internal(&ticket_id, &duration).await?;
@@ -800,14 +868,14 @@ impl CommandHandler {
     async fn create_ticket_internal(&mut self, project: String, name: String, description: Option<String>) -> Result<()> {
         let validated_project = validate_project_name(&project)?;
         let validated_name = validate_content_length(&name, ContentType::TicketName)?;
-        
+
         let description = if let Some(desc) = description {
             desc
         } else {
             feedback::show_info("Opening editor for ticket description...");
             edit("")?.trim().to_string()
         };
-        
+
         let validated_description = validate_content_length(&description, ContentType::Description)?;
 
         let project_suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
@@ -839,14 +907,14 @@ impl CommandHandler {
         let pb = feedback::create_progress_bar("Loading tickets");
         let tickets = self.db.list_tickets(validated_project.as_deref()).await?;
         pb.finish_and_clear();
-        
+
         if json {
             let output = crate::json_formatting::format_ticket_list_json(&tickets, validated_project.as_deref());
             println!("{}", output);
         } else {
             let formatted_output = format_ticket_list(&tickets);
             println!("{}", formatted_output);
-            
+
             if !tickets.is_empty() {
                 feedback::show_success(&format!("Found {} ticket(s)", tickets.len()));
             } else {
@@ -864,7 +932,7 @@ impl CommandHandler {
             let comments = self.db.get_comments(validated_ticket_id).await?;
             let time_logs = self.db.get_time_logs(validated_ticket_id).await?;
             pb.finish_and_clear();
-            
+
             if json {
                 let output = crate::json_formatting::format_ticket_details_json(&ticket, &comments, &time_logs);
                 println!("{}", output);
@@ -883,19 +951,19 @@ impl CommandHandler {
     async fn update_ticket_status_internal(&mut self, ticket_id: i64, status: &str, force: bool) -> Result<()> {
         if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
             let target = format!("ticket {} ('{}')", ticket_id, ticket.name);
-            
+
             if !force && !interactive::confirm_destructive_action("update status of", &target)? {
                 feedback::show_info("Operation cancelled");
                 return Ok(());
             }
-            
+
             let suggestions = suggestions::suggest_status_names(status);
             if !suggestions.contains(&status.to_string()) && !suggestions.is_empty() {
                 if let Some(suggestion_msg) = suggestions::format_suggestions(status, &suggestions, "status") {
                     feedback::show_thinking(&suggestion_msg);
                 }
             }
-            
+
             let pb = feedback::create_progress_bar("Updating ticket status");
             self.db.update_ticket_status(ticket_id, status).await?;
             pb.finish_with_message("Status updated");
@@ -907,7 +975,7 @@ impl CommandHandler {
     async fn update_ticket_field_internal(&mut self, ticket_id: &str, field: &str, value: &str) -> Result<()> {
         let validated_ticket_id = validate_ticket_id(ticket_id)?;
         self.validate_ticket_exists(validated_ticket_id).await?;
-        
+
         match field {
             "name" => {
                 let _validated_name = validate_content_length(value, ContentType::TicketName)?;
@@ -936,12 +1004,12 @@ impl CommandHandler {
 
         if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
             let target = format!("ticket {} ('{}')", validated_ticket_id, ticket.name);
-            
+
             if !force && !interactive::confirm_destructive_action("delete", &target)? {
                 feedback::show_info("Operation cancelled");
                 return Ok(());
             }
-            
+
             let pb = feedback::create_progress_bar("Deleting ticket");
             self.db.delete_ticket(validated_ticket_id).await?;
             pb.finish_with_message("Ticket deleted");
@@ -999,18 +1067,18 @@ impl CommandHandler {
 
     async fn show_project_summary_internal(&mut self, project: &str, json: bool) -> Result<()> {
         let validated_project = validate_project_name(project)?;
-        
+
         let pb = feedback::create_progress_bar("Loading project summary");
         let summary = self.db.get_project_summary(&validated_project).await?;
         pb.finish_and_clear();
-        
+
         if summary.total_tickets == 0 {
             if json {
                 let output = crate::json_formatting::format_project_summary_json(&validated_project, &summary);
                 println!("{}", output);
             } else {
                 feedback::show_info(&format!("No tickets found for project '{}'", validated_project));
-                
+
                 let suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
                 if let Some(suggestion_msg) = suggestions::format_suggestions(&validated_project, &suggestions, "project") {
                     feedback::show_thinking(&suggestion_msg);
@@ -1061,15 +1129,28 @@ impl CommandHandler {
             feedback::show_info("No active timers");
         } else {
             println!("⏱️  Active Timers:");
-            for (ticket_id, start_time) in &self.time_tracking {
-                let duration = Utc::now() - *start_time;
-                let hours = duration.num_hours();
-                let minutes = duration.num_minutes() % 60;
-                
-                if let Some(ticket) = self.db.get_ticket(*ticket_id).await? {
-                    println!("  • Ticket {} ('{}'): {}h {}m", ticket_id, ticket.name, hours, minutes);
+            for (ticket_id, state) in &self.time_tracking {
+                let mut total_duration = if let Some(elapsed) = state.elapsed_time {
+                    elapsed
                 } else {
-                    println!("  • Ticket {}: {}h {}m", ticket_id, hours, minutes);
+                    Duration::zero()
+                };
+
+                // Calculate current duration based on whether the timer is paused
+                if let Some(paused_at) = state.paused_at {
+                    total_duration = total_duration + (paused_at - state.start_time);
+                } else {
+                    total_duration = total_duration + (Utc::now() - state.start_time);
+                }
+
+                let hours = total_duration.num_hours();
+                let minutes = total_duration.num_minutes() % 60;
+                let status = if state.is_paused() { "⏸️  PAUSED" } else { "▶️  RUNNING" };
+
+                if let Some(ticket) = self.db.get_ticket(*ticket_id).await? {
+                    println!("  • Ticket {} ('{}'): {}h {}m - {}", ticket_id, ticket.name, hours, minutes, status);
+                } else {
+                    println!("  • Ticket {}: {}h {}m - {}", ticket_id, hours, minutes, status);
                 }
             }
             feedback::show_success(&format!("{} active timer(s)", self.time_tracking.len()));
@@ -1078,16 +1159,29 @@ impl CommandHandler {
     }
 
     async fn stop_time_tracking_internal(&mut self, ticket_id: i64) -> Result<()> {
-        if let Some(start_time) = self.time_tracking.remove(&ticket_id) {
+        if let Some(state) = self.time_tracking.remove(&ticket_id) {
             let end_time = Utc::now();
-            let duration = end_time - start_time;
-            let hours = duration.num_hours() as i32;
-            let minutes = (duration.num_minutes() % 60) as i32;
-            
+            let mut total_duration = if let Some(elapsed) = state.elapsed_time {
+                elapsed
+            } else {
+                Duration::zero()
+            };
+
+            // If the timer is paused, use the paused_at time as the end time
+            // Otherwise, calculate duration from start_time to now
+            if let Some(paused_at) = state.paused_at {
+                total_duration = total_duration + (paused_at - state.start_time);
+            } else {
+                total_duration = total_duration + (end_time - state.start_time);
+            }
+
+            let hours = total_duration.num_hours() as i32;
+            let minutes = (total_duration.num_minutes() % 60) as i32;
+
             let pb = feedback::create_progress_bar("Logging time");
-            self.db.add_time_log(ticket_id, hours, minutes, Some(start_time), Some(end_time)).await?;
+            self.db.add_time_log(ticket_id, hours, minutes, Some(state.start_time), Some(end_time)).await?;
             pb.finish_with_message("Time logged");
-            
+
             if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
                 feedback::show_celebration(&format!(
                     "Logged {} hours and {} minutes for ticket {} ('{}')",
@@ -1107,7 +1201,7 @@ impl CommandHandler {
 
     async fn stop_all_active_timers(&mut self) -> Result<()> {
         let active_tickets: Vec<i64> = self.time_tracking.keys().cloned().collect();
-        
+
         if active_tickets.is_empty() {
             feedback::show_info("No active timers to stop");
             return Ok(());
@@ -1116,22 +1210,123 @@ impl CommandHandler {
         for ticket_id in active_tickets {
             self.stop_time_tracking_internal(ticket_id).await?;
         }
-        
+
         feedback::show_success("All active timers stopped");
+        Ok(())
+    }
+
+    async fn cancel_time_tracking_internal(&mut self, ticket_id: i64) -> Result<()> {
+        if let Some(_) = self.time_tracking.remove(&ticket_id) {
+            if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
+                feedback::show_success(&format!(
+                    "Cancelled time tracking for ticket {} ('{}')",
+                    ticket_id, ticket.name
+                ));
+            } else {
+                feedback::show_success(&format!(
+                    "Cancelled time tracking for ticket {}",
+                    ticket_id
+                ));
+            }
+        } else {
+            feedback::show_warning(&format!("No active time tracking for ticket {}", ticket_id));
+        }
+        Ok(())
+    }
+
+    async fn cancel_all_active_timers(&mut self) -> Result<()> {
+        let active_tickets: Vec<i64> = self.time_tracking.keys().cloned().collect();
+
+        if active_tickets.is_empty() {
+            feedback::show_info("No active timers to cancel");
+            return Ok(());
+        }
+
+        for ticket_id in active_tickets {
+            self.cancel_time_tracking_internal(ticket_id).await?;
+        }
+
+        feedback::show_success("All active timers cancelled");
+        Ok(())
+    }
+
+    async fn pause_time_tracking_internal(&mut self, ticket_id: i64) -> Result<()> {
+        if let Some(state) = self.time_tracking.get_mut(&ticket_id) {
+            if state.is_paused() {
+                feedback::show_warning(&format!("Timer for ticket {} is already paused", ticket_id));
+                return Ok(());
+            }
+
+            // Set the paused_at time to now
+            state.paused_at = Some(Utc::now());
+
+            if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
+                feedback::show_success(&format!(
+                    "Paused time tracking for ticket {} ('{}')",
+                    ticket_id, ticket.name
+                ));
+            } else {
+                feedback::show_success(&format!(
+                    "Paused time tracking for ticket {}",
+                    ticket_id
+                ));
+            }
+        } else {
+            feedback::show_warning(&format!("No active time tracking for ticket {}", ticket_id));
+        }
+        Ok(())
+    }
+
+    async fn resume_time_tracking_internal(&mut self, ticket_id: i64) -> Result<()> {
+        if let Some(state) = self.time_tracking.get_mut(&ticket_id) {
+            if !state.is_paused() {
+                feedback::show_warning(&format!("Timer for ticket {} is not paused", ticket_id));
+                return Ok(());
+            }
+
+            // Calculate elapsed time up to the pause point
+            let paused_at = state.paused_at.unwrap(); // Safe because we checked is_paused()
+            let current_elapsed = paused_at - state.start_time;
+
+            // Update elapsed time (add current segment to any previous elapsed time)
+            state.elapsed_time = Some(if let Some(previous_elapsed) = state.elapsed_time {
+                previous_elapsed + current_elapsed
+            } else {
+                current_elapsed
+            });
+
+            // Reset start time to now and clear paused_at
+            state.start_time = Utc::now();
+            state.paused_at = None;
+
+            if let Some(ticket) = self.db.get_ticket(ticket_id).await? {
+                feedback::show_success(&format!(
+                    "Resumed time tracking for ticket {} ('{}')",
+                    ticket_id, ticket.name
+                ));
+            } else {
+                feedback::show_success(&format!(
+                    "Resumed time tracking for ticket {}",
+                    ticket_id
+                ));
+            }
+        } else {
+            feedback::show_warning(&format!("No active time tracking for ticket {}", ticket_id));
+        }
         Ok(())
     }
 
     async fn log_time_duration_internal(&mut self, ticket_id: &str, duration: &str) -> Result<()> {
         let validated_ticket_id = validate_ticket_id(ticket_id)?;
         self.validate_ticket_exists(validated_ticket_id).await?;
-        
+
         // Parse duration string (e.g., "2h30m", "1.5h", "90m")
         let (hours, minutes) = self.parse_duration(duration)?;
-        
+
         let pb = feedback::create_progress_bar("Logging time");
         self.db.add_time_log(validated_ticket_id, hours, minutes, None, None).await?;
         pb.finish_with_message("Time logged");
-        
+
         if let Some(ticket) = self.db.get_ticket(validated_ticket_id).await? {
             feedback::show_celebration(&format!(
                 "Logged {} hours and {} minutes for ticket {} ('{}')",
@@ -1146,13 +1341,13 @@ impl CommandHandler {
         if duration.contains('h') || duration.contains('m') {
             let mut hours = 0;
             let mut minutes = 0;
-            
+
             if let Some(h_pos) = duration.find('h') {
                 if let Ok(h) = duration[..h_pos].parse::<i32>() {
                     hours = h;
                 }
             }
-            
+
             if let Some(m_pos) = duration.find('m') {
                 let start = if duration.contains('h') {
                     duration.find('h').unwrap() + 1
@@ -1163,7 +1358,7 @@ impl CommandHandler {
                     minutes = m;
                 }
             }
-            
+
             Ok((hours, minutes))
         } else {
             // Try to parse as decimal hours

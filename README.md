@@ -131,6 +131,11 @@ ltm status <ticket_id> <status>
 ltm status 1 in-progress
 ltm status 1 testing
 ltm status 1 closed
+
+# Using the new command
+ltm update status <ticket_id> <status>
+# or
+ltm set status <ticket_id> <status>
 ```
 
 Close a ticket (alias for status update):
@@ -140,6 +145,24 @@ ltm close <ticket_id> <status>
 
 # Example:
 ltm close 1 completed
+```
+
+### Workflow Commands
+
+Quick status updates:
+
+```bash
+# Mark ticket as open
+ltm open <ticket_id>
+
+# Mark ticket as completed
+ltm complete <ticket_id>
+
+# Mark ticket as blocked (with optional reason)
+ltm block <ticket_id> [reason]
+
+# Start working on a ticket (sets status to in-progress and starts timer)
+ltm start <ticket_id>
 ```
 
 Delete a ticket:
@@ -174,6 +197,12 @@ ltm log <ticket_id> <hours> <minutes>
 ltm log 1 2 30    # Log 2 hours 30 minutes
 ltm log 1 0 45    # Log 45 minutes
 ltm log 1 4 0     # Log 4 hours
+
+# Improved format (using time command)
+ltm time log 1 "2h30m"    # Log 2 hours 30 minutes
+ltm time log 1 "45m"      # Log 45 minutes
+ltm time log 1 "4h"       # Log 4 hours
+ltm time log 1 "1.5h"     # Log 1 hour 30 minutes
 ```
 
 Start/stop time tracking:
@@ -181,14 +210,32 @@ Start/stop time tracking:
 ```bash
 # Start tracking time
 ltm log <ticket_id> --start
+# or using the new command
+ltm time start <ticket_id>
 
 # Stop tracking time (automatically calculates duration)
 ltm log <ticket_id> --end
+# or using the new command
+ltm time stop <ticket_id>
+# Stop all active timers
+ltm time stop
+
+# Cancel tracking without logging time
+ltm time cancel <ticket_id>
+# Cancel all active timers
+ltm time cancel
+
+# View active timers
+ltm active
+# or
+ltm timer
+# or
+ltm time active
 
 # Example workflow:
-ltm log 1 --start
+ltm time start 1
 # ... work on the ticket ...
-ltm log 1 --end
+ltm time stop 1
 ```
 
 ### Project Management
@@ -200,6 +247,19 @@ ltm proj <project>
 
 # Example:
 ltm proj webapp
+
+# Using the new command
+ltm project show <project>
+# or
+ltm project summary <project>
+```
+
+List all projects:
+
+```bash
+ltm projects
+# or
+ltm project list
 ```
 
 This shows:
