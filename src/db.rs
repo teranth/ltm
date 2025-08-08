@@ -21,7 +21,8 @@ impl Database {
         std::fs::create_dir_all(db_path.parent().unwrap())?;
 
         let options = SqliteConnectOptions::from_str(&format!("sqlite:{}", db_path.display()))?
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .foreign_keys(true);
 
         let pool = SqlitePool::connect_with(options).await?;
 
@@ -134,6 +135,47 @@ impl Database {
         Ok(tickets)
     }
 
+    pub async fn list_tickets_filtered(
+        &self,
+        project: Option<&str>,
+        status: Option<&str>,
+        sort: &str,
+    ) -> Result<Vec<Ticket>> {
+        let mut query = String::from(
+            "SELECT id, project, name, description, status, created_at, updated_at FROM tickets",
+        );
+        let mut clauses: Vec<&str> = Vec::new();
+        if project.is_some() {
+            clauses.push("project = ?");
+        }
+        if status.is_some() {
+            clauses.push("LOWER(status) = ?");
+        }
+        if !clauses.is_empty() {
+            query.push_str(" WHERE ");
+            query.push_str(&clauses.join(" AND "));
+        }
+
+        let order_by = match sort.to_lowercase().as_str() {
+            "created" | "created_at" => "created_at DESC",
+            "status" => "status ASC, updated_at DESC",
+            "project" => "project ASC, updated_at DESC",
+            _ => "updated_at DESC",
+        };
+        query.push_str(" ORDER BY ");
+        query.push_str(order_by);
+
+        let mut q = sqlx::query_as::<_, Ticket>(&query);
+        if let Some(p) = project {
+            q = q.bind(p);
+        }
+        if let Some(s) = status {
+            q = q.bind(s.to_lowercase());
+        }
+        let tickets = q.fetch_all(&self.pool).await?;
+        Ok(tickets)
+    }
+
     pub async fn update_ticket_status(&self, id: i64, status: &str) -> Result<()> {
         sqlx::query(
             r#"
@@ -146,6 +188,30 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        Ok(())
+    }
+
+    pub async fn update_ticket_name(&self, id: i64, name: &str) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE tickets SET name = ?, updated_at = ? WHERE id = ?"#,
+        )
+        .bind(name)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_ticket_description(&self, id: i64, description: &str) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE tickets SET description = ?, updated_at = ? WHERE id = ?"#,
+        )
+        .bind(description)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -183,6 +249,33 @@ impl Database {
         .await?;
 
         Ok(comments)
+    }
+
+    pub async fn get_comment(&self, comment_id: i64) -> Result<Option<Comment>> {
+        let comment = sqlx::query_as::<_, Comment>(
+            "SELECT id, ticket_id, content, created_at FROM comments WHERE id = ?",
+        )
+        .bind(comment_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(comment)
+    }
+
+    pub async fn update_comment(&self, comment_id: i64, content: &str) -> Result<()> {
+        sqlx::query("UPDATE comments SET content = ? WHERE id = ?")
+            .bind(content)
+            .bind(comment_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_comment(&self, comment_id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM comments WHERE id = ?")
+            .bind(comment_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn add_time_log(
@@ -277,5 +370,58 @@ impl Database {
         }
 
         Ok(time_logs)
+    }
+
+    pub async fn update_time_log(&self, log_id: i64, hours: i32, minutes: i32) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE time_logs SET hours = ?, minutes = ? WHERE id = ?"#,
+        )
+        .bind(hours)
+        .bind(minutes)
+        .bind(log_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete_time_log(&self, log_id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM time_logs WHERE id = ?")
+            .bind(log_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn move_ticket_project(&self, id: i64, project: &str) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE tickets SET project = ?, updated_at = ? WHERE id = ?"#,
+        )
+        .bind(project)
+        .bind(Utc::now().naive_utc())
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn copy_ticket(&self, id: i64, target_project: Option<&str>) -> Result<i64> {
+        let ticket = self.get_ticket(id).await?.context("Source ticket not found")?;
+        let now = Utc::now().naive_utc();
+        let new_id = sqlx::query(
+            r#"
+            INSERT INTO tickets (project, name, description, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+        )
+        .bind(target_project.unwrap_or(&ticket.project))
+        .bind(&ticket.name)
+        .bind(&ticket.description)
+        .bind(&ticket.status)
+        .bind(now)
+        .bind(now)
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid();
+        Ok(new_id)
     }
 } 

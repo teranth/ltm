@@ -6,11 +6,11 @@ use std::str::FromStr;
 
 // Create a test database in memory for better isolation
 async fn create_test_database() -> Database {
-    // Use in-memory database for testing
+    // Use in-memory database for testing with FK enforcement
     let options = sqlx::sqlite::SqliteConnectOptions::from_str("sqlite::memory:")
         .unwrap()
-        .create_if_missing(true);
-
+        .create_if_missing(true)
+        .foreign_keys(true);
     let pool = sqlx::SqlitePool::connect_with(options).await.unwrap();
     sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 

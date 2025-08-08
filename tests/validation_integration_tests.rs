@@ -11,8 +11,8 @@ mod validation_integration_tests {
 
     async fn create_test_database() -> Result<Database> {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")?
-            .create_if_missing(true);
-
+            .create_if_missing(true)
+            .foreign_keys(true);
         let pool = SqlitePool::connect_with(options).await?;
 
         sqlx::migrate!("./migrations")

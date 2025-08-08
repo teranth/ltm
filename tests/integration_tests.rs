@@ -8,7 +8,8 @@ use std::str::FromStr;
 async fn create_test_database() -> Result<Database> {
     // Use in-memory database for testing
     let options = SqliteConnectOptions::from_str("sqlite::memory:")?
-        .create_if_missing(true);
+        .create_if_missing(true)
+        .foreign_keys(true);
     
     let pool = SqlitePool::connect_with(options).await?;
     
@@ -203,12 +204,11 @@ async fn test_error_handling() -> Result<()> {
     let result = database.get_ticket(999).await?;
     assert!(result.is_none());
     
-    // Test adding comment to non-existent ticket
-    let _comment_result = database.add_comment(999, "test comment").await;
-    // This should succeed in SQLite even with invalid foreign key (by default)
-    // In a production system, we might want to add foreign key constraints
+    // Test adding comment to non-existent ticket should fail due to FK enforcement
+    let comment_result = database.add_comment(999, "test comment").await;
+    assert!(comment_result.is_err());
     
-    // Test getting comments for non-existent ticket
+    // Test getting comments for non-existent ticket (should be empty)
     let comments = database.get_comments(999).await?;
     assert_eq!(comments.len(), 0);
     

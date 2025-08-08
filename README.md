@@ -62,19 +62,30 @@ ltm init
 2. Create your first ticket:
 
 ```bash
+# New (preferred)
+ltm ticket create myproject "Setup project" "Initialize the project structure"
+
+# Legacy alias (still supported)
 ltm add myproject "Setup project" "Initialize the project structure"
 ```
 
 3. List all tickets:
 
 ```bash
+# With filters and sorting
 ltm list
+ltm list myproject --status open --sort updated
+
+# JSON output
+ltm list --json
 ```
 
 4. View ticket details:
 
 ```bash
 ltm show 1
+# JSON output
+ltm show 1 --json
 ```
 
 ## Usage
@@ -92,15 +103,20 @@ ltm init
 Create a new ticket:
 
 ```bash
-# With description
+# Preferred hierarchical commands
+ltm ticket create <project> <name> [description]
+ltm ticket list [--project <name>] [--status <status>] [--sort updated|created|status|project]
+ltm ticket show <id> [--full]
+ltm ticket update <id> name|description|status <value>
+ltm ticket delete <id> [--force]
+ltm ticket move <id> <project>
+ltm ticket copy <id> [project]
+
+# Legacy aliases (supported):
 ltm add <project> <name> [description]
-
-# Examples:
-ltm add webapp "Fix login bug" "Users can't login with special characters"
-ltm add mobile "Add dark mode" "Implement dark theme support"
-
-# Without description (opens editor)
-ltm add webapp "New feature"
+ltm list [project]
+ltm show <id>
+ltm delete <id>
 ```
 
 List tickets:
@@ -179,11 +195,11 @@ ltm delete 1
 Add comments to tickets:
 
 ```bash
-ltm comment <ticket_id> <comment>
-
-# Examples:
-ltm comment 1 "Fixed the authentication issue"
-ltm comment 1 "Need to test on mobile devices"
+ltm comment add <ticket_id> <comment>
+ltm comment list <ticket_id>
+ltm comment show <comment_id>
+ltm comment update <comment_id> <content>
+ltm comment delete <comment_id>
 ```
 
 ### Time Tracking
@@ -191,18 +207,17 @@ ltm comment 1 "Need to test on mobile devices"
 Manual time logging:
 
 ```bash
+# Legacy logging (still supported):
 ltm log <ticket_id> <hours> <minutes>
 
-# Examples:
-ltm log 1 2 30    # Log 2 hours 30 minutes
-ltm log 1 0 45    # Log 45 minutes
-ltm log 1 4 0     # Log 4 hours
-
-# Improved format (using time command)
-ltm time log 1 "2h30m"    # Log 2 hours 30 minutes
-ltm time log 1 "45m"      # Log 45 minutes
-ltm time log 1 "4h"       # Log 4 hours
-ltm time log 1 "1.5h"     # Log 1 hour 30 minutes
+# Preferred hierarchical time commands:
+ltm time start <ticket_id>
+ltm time stop [ticket_id]
+ltm time log <ticket_id> <duration>   # e.g., 2h30m, 1.5h, 90m
+ltm time list <ticket_id>
+ltm time summary <ticket_id>
+ltm time update <log_id> <duration>
+ltm time delete <log_id>
 ```
 
 Start/stop time tracking:
@@ -243,23 +258,12 @@ ltm time stop 1
 View project summary:
 
 ```bash
-ltm proj <project>
-
-# Example:
-ltm proj webapp
-
-# Using the new command
 ltm project show <project>
-# or
-ltm project summary <project>
-```
-
-List all projects:
-
-```bash
-ltm projects
-# or
 ltm project list
+ltm project summary <project>
+
+# Legacy alias (supported):
+ltm proj <project>
 ```
 
 This shows:
@@ -296,6 +300,10 @@ Valid statuses include:
 - `cancelled` - Cancelled tickets
 - `wontfix` - Will not be fixed
 
+Notes:
+
+- The formatter and summaries also treat `completed` and `done` as closed in displays.
+
 ### Content Length Limits
 
 - **Ticket names**: 1-100 characters
@@ -318,6 +326,16 @@ The application features beautiful formatted output:
 - **Rich ticket details** with structured boxes
 - **Icons and emojis** for better visual organization
 - **NO_COLOR environment variable** support for plain text output
+
+### JSON Output
+
+Read/display commands support `--json` to emit machine-readable output:
+
+- `ltm list [project] --json`
+- `ltm show <ticket_id> --json`
+- `ltm proj <project> --json`
+
+When `--json` is provided, validation errors are emitted as JSON too. Use `--json-pretty` for pretty-printed output.
 
 ## Data Storage
 
@@ -395,7 +413,7 @@ lticket/
 ├── src/
 │   ├── main.rs          # Application entry point
 │   ├── lib.rs           # Library exports
-│   ├── commands.rs      # CLI command definitions and handlers
+│   ├── commands.rs      # CLI command definitions and handlers (hierarchical + legacy aliases)
 │   ├── db.rs           # Database operations and connection
 │   ├── models.rs       # Data structure definitions
 │   ├── validation.rs   # Input validation and error handling
@@ -488,6 +506,19 @@ ltm proj devops
 
 - `SQLX_OFFLINE=true`: Disable compile-time SQL checking (required for building)
 - `NO_COLOR=1`: Disable colored output for plain text
+
+### Shell Completions
+
+Generate shell completions to improve discoverability:
+
+```bash
+# Print to stdout (choose your shell)
+ltm completions bash
+ltm completions zsh
+
+# Write to a directory
+ltm completions zsh ~/.zfunc
+```
 
 ## Contributing
 

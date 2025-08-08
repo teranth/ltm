@@ -1,6 +1,6 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use clap::{Parser, Subcommand};
+use chrono::{DateTime, Duration, Utc};
+use clap::{CommandFactory, Parser, Subcommand};
 use edit::edit;
 use std::collections::HashMap;
 
@@ -14,6 +14,9 @@ use crate::validation::{
 use crate::interactive;
 use crate::feedback;
 use crate::suggestions;
+use std::fs;
+use clap_complete::{generate, generate_to};
+use clap_complete::shells::{Bash, Zsh, Fish, PowerShell, Elvish};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -93,6 +96,14 @@ enum Commands {
     #[command(alias = "timer")]
     Active,
 
+    /// Generate shell completion scripts
+    Completions {
+        /// Shell: bash|zsh|fish|powershell|elvish
+        shell: String,
+        /// Output directory (optional). If omitted, prints to stdout.
+        out_dir: Option<String>,
+    },
+    
     // Legacy commands with backward compatibility
     /// [LEGACY] Add a new ticket (use 'ticket create' instead)
     Add {
@@ -145,6 +156,9 @@ enum Commands {
         /// Output in JSON format
         #[arg(long)]
         json: bool,
+        /// Pretty JSON output
+        #[arg(long)]
+        json_pretty: bool,
         /// Status filter
         #[arg(long)]
         status: Option<String>,
@@ -161,6 +175,9 @@ enum Commands {
         /// Output in JSON format
         #[arg(long)]
         json: bool,
+        /// Pretty JSON output
+        #[arg(long)]
+        json_pretty: bool,
         /// Include full details
         #[arg(long)]
         full: bool,
@@ -192,6 +209,9 @@ enum Commands {
         /// Output in JSON format
         #[arg(long)]
         json: bool,
+        /// Pretty JSON output
+        #[arg(long)]
+        json_pretty: bool,
     },
 }
 
@@ -582,6 +602,9 @@ impl CommandHandler {
             Commands::Active => {
                 self.handle_show_active_timers().await?;
             }
+            Commands::Completions { shell, out_dir } => {
+                self.handle_generate_completions(&shell, out_dir.as_deref())?;
+            }
             // Legacy commands with deprecation warnings
             Commands::Add { project, name, description } => {
                 feedback::show_warning("'ltm add' is deprecated. Use 'ltm ticket create' instead.");
@@ -628,11 +651,29 @@ impl CommandHandler {
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
                 }
             }
-            Commands::List { project, json, status, sort: _ } => {
-                self.list_tickets_internal(project, status, json).await?;
+            Commands::List { project, json, json_pretty, status, sort } => {
+                let want_json = json || json_pretty;
+                if let Err(e) = self.list_tickets_internal(project, status, Some(sort), want_json).await {
+                    if json {
+                        if let Some(validation_error) = e.downcast_ref::<ValidationError>() {
+                            println!("{}", crate::json_formatting::format_error_json(validation_error));
+                            return Ok(());
+                        }
+                    }
+                    return Err(e);
+                }
             }
-            Commands::Show { ticket_id, json, full } => {
-                self.show_ticket_internal(&ticket_id, full, json).await?;
+            Commands::Show { ticket_id, json, json_pretty, full } => {
+                let want_json = json || json_pretty;
+                if let Err(e) = self.show_ticket_internal(&ticket_id, full, want_json).await {
+                    if json {
+                        if let Some(validation_error) = e.downcast_ref::<ValidationError>() {
+                            println!("{}", crate::json_formatting::format_error_json(validation_error));
+                            return Ok(());
+                        }
+                    }
+                    return Err(e);
+                }
             }
 
             Commands::Log {
@@ -702,11 +743,19 @@ impl CommandHandler {
                     return Err(ValidationError::TicketNotFound(validated_ticket_id).into());
                 }
             }
-            Commands::Proj { project, json } => {
+            Commands::Proj { project, json, json_pretty } => {
                 feedback::show_warning("'ltm proj' is deprecated. Use 'ltm project show' instead.");
                 feedback::show_info("Example: ltm project show myproject");
-
-                self.show_project_summary_internal(&project, json).await?;
+                let want_json = json || json_pretty;
+                if let Err(e) = self.show_project_summary_internal(&project, want_json).await {
+                    if json {
+                        if let Some(validation_error) = e.downcast_ref::<ValidationError>() {
+                            println!("{}", crate::json_formatting::format_error_json(validation_error));
+                            return Ok(());
+                        }
+                    }
+                    return Err(e);
+                }
             }
         }
         Ok(())
@@ -718,8 +767,8 @@ impl CommandHandler {
             TicketAction::Create { project, name, description } => {
                 self.create_ticket_internal(project, name, description).await?;
             }
-            TicketAction::List { project, status, sort: _ } => {
-                self.list_tickets_internal(project, status, false).await?;
+            TicketAction::List { project, status, sort } => {
+                self.list_tickets_internal(project, status, Some(sort), false).await?;
             }
             TicketAction::Show { ticket_id, full } => {
                 self.show_ticket_internal(&ticket_id, full, false).await?;
@@ -770,14 +819,41 @@ impl CommandHandler {
             CommentAction::List { ticket_id } => {
                 self.list_comments_internal(&ticket_id).await?;
             }
-            CommentAction::Show { comment_id: _ } => {
-                feedback::show_error("Individual comment viewing not yet implemented");
+            CommentAction::Show { comment_id } => {
+                let validated_comment_id = validate_ticket_id(&comment_id)?; // reuse positive integer validation
+                let pb = feedback::create_progress_bar("Loading comment");
+                if let Some(comment) = self.db.get_comment(validated_comment_id).await? {
+                    pb.finish_and_clear();
+                    println!(
+                        "💬 Comment #{} (ticket {} at {}):\n{}",
+                        comment.id,
+                        comment.ticket_id,
+                        comment.created_at.format("%Y-%m-%d %H:%M"),
+                        comment.content
+                    );
+                } else {
+                    pb.finish_and_clear();
+                    feedback::show_info(&format!("Comment #{} not found", validated_comment_id));
+                }
             }
-            CommentAction::Update { comment_id: _, content: _ } => {
-                feedback::show_error("Comment editing not yet implemented");
+            CommentAction::Update { comment_id, content } => {
+                let validated_comment_id = validate_ticket_id(&comment_id)?;
+                let validated_content = validate_content_length(&content, ContentType::Comment)?;
+                let pb = feedback::create_progress_bar("Updating comment");
+                self.db.update_comment(validated_comment_id, &validated_content).await?;
+                pb.finish_with_message("Comment updated");
+                feedback::show_success(&format!("Comment #{} updated", validated_comment_id));
             }
-            CommentAction::Delete { comment_id: _ } => {
-                feedback::show_error("Comment deletion not yet implemented");
+            CommentAction::Delete { comment_id } => {
+                let validated_comment_id = validate_ticket_id(&comment_id)?;
+                if !interactive::confirm_destructive_action("delete", &format!("comment #{}", validated_comment_id))? {
+                    feedback::show_info("Operation cancelled");
+                    return Ok(());
+                }
+                let pb = feedback::create_progress_bar("Deleting comment");
+                self.db.delete_comment(validated_comment_id).await?;
+                pb.finish_with_message("Comment deleted");
+                feedback::show_success(&format!("Deleted comment #{}", validated_comment_id));
             }
         }
         Ok(())
@@ -818,20 +894,60 @@ impl CommandHandler {
             TimeAction::Log { ticket_id, duration } => {
                 self.log_time_duration_internal(&ticket_id, &duration).await?;
             }
-            TimeAction::List { ticket_id: _ } => {
-                feedback::show_error("Time log listing not yet implemented");
+            TimeAction::List { ticket_id } => {
+                let validated_ticket_id = validate_ticket_id(&ticket_id)?;
+                self.validate_ticket_exists(validated_ticket_id).await?;
+                let pb = feedback::create_progress_bar("Loading time logs");
+                let logs = self.db.get_time_logs(validated_ticket_id).await?;
+                pb.finish_and_clear();
+                if logs.is_empty() {
+                    feedback::show_info(&format!("No time logs for ticket {}", validated_ticket_id));
+                } else {
+                    println!("⏱️  Time logs for ticket {}:", validated_ticket_id);
+                    for log in &logs {
+                        let span = match (log.started_at, log.ended_at) {
+                            (Some(s), Some(e)) => format!(" ({} → {})", s.format("%Y-%m-%d %H:%M"), e.format("%Y-%m-%d %H:%M")),
+                            _ => String::new(),
+                        };
+                        println!("  • #{}: {}h {}m{}", log.id, log.hours, log.minutes, span);
+                    }
+                    feedback::show_success(&format!("Found {} time log(s)", logs.len()));
+                }
             }
             TimeAction::Active => {
                 self.handle_show_active_timers().await?;
             }
-            TimeAction::Summary { ticket_id: _ } => {
-                feedback::show_error("Time summary not yet implemented");
+            TimeAction::Summary { ticket_id } => {
+                let validated_ticket_id = validate_ticket_id(&ticket_id)?;
+                self.validate_ticket_exists(validated_ticket_id).await?;
+                let logs = self.db.get_time_logs(validated_ticket_id).await?;
+                let mut total_minutes = 0i64;
+                for l in &logs {
+                    total_minutes += (l.hours as i64) * 60 + (l.minutes as i64);
+                }
+                let hours = total_minutes / 60;
+                let minutes = total_minutes % 60;
+                println!("⏱️  Time summary for ticket {}: {}h {}m ({} logs)", validated_ticket_id, hours, minutes, logs.len());
+                feedback::show_success("Summary complete");
             }
-            TimeAction::Update { log_id: _, duration: _ } => {
-                feedback::show_error("Time log editing not yet implemented");
+            TimeAction::Update { log_id, duration } => {
+                let validated_log_id = validate_ticket_id(&log_id)?;
+                let (hours, minutes) = self.parse_duration(&duration)?;
+                let pb = feedback::create_progress_bar("Updating time log");
+                self.db.update_time_log(validated_log_id, hours, minutes).await?;
+                pb.finish_with_message("Time log updated");
+                feedback::show_success(&format!("Time log #{} updated to {}h {}m", validated_log_id, hours, minutes));
             }
-            TimeAction::Delete { log_id: _ } => {
-                feedback::show_error("Time log deletion not yet implemented");
+            TimeAction::Delete { log_id } => {
+                let validated_log_id = validate_ticket_id(&log_id)?;
+                if !interactive::confirm_destructive_action("delete", &format!("time log #{}", validated_log_id))? {
+                    feedback::show_info("Operation cancelled");
+                    return Ok(());
+                }
+                let pb = feedback::create_progress_bar("Deleting time log");
+                self.db.delete_time_log(validated_log_id).await?;
+                pb.finish_with_message("Time log deleted");
+                feedback::show_success(&format!("Deleted time log #{}", validated_log_id));
             }
         }
         Ok(())
@@ -865,6 +981,59 @@ impl CommandHandler {
     }
 
     // Internal implementation methods
+    fn handle_generate_completions(&self, shell: &str, out_dir: Option<&str>) -> Result<()> {
+        let mut cmd = Cli::command();
+        let bin_name = "ltm";
+        match shell.to_lowercase().as_str() {
+            "bash" => {
+                if let Some(dir) = out_dir {
+                    fs::create_dir_all(dir)?;
+                    generate_to(Bash, &mut cmd, bin_name, dir)?;
+                } else {
+                    generate(Bash, &mut cmd, bin_name, &mut std::io::stdout());
+                }
+            }
+            "zsh" => {
+                if let Some(dir) = out_dir {
+                    fs::create_dir_all(dir)?;
+                    generate_to(Zsh, &mut cmd, bin_name, dir)?;
+                } else {
+                    generate(Zsh, &mut cmd, bin_name, &mut std::io::stdout());
+                }
+            }
+            "fish" => {
+                if let Some(dir) = out_dir {
+                    fs::create_dir_all(dir)?;
+                    generate_to(Fish, &mut cmd, bin_name, dir)?;
+                } else {
+                    generate(Fish, &mut cmd, bin_name, &mut std::io::stdout());
+                }
+            }
+            "powershell" | "pwsh" => {
+                if let Some(dir) = out_dir {
+                    fs::create_dir_all(dir)?;
+                    generate_to(PowerShell, &mut cmd, bin_name, dir)?;
+                } else {
+                    generate(PowerShell, &mut cmd, bin_name, &mut std::io::stdout());
+                }
+            }
+            "elvish" => {
+                if let Some(dir) = out_dir {
+                    fs::create_dir_all(dir)?;
+                    generate_to(Elvish, &mut cmd, bin_name, dir)?;
+                } else {
+                    generate(Elvish, &mut cmd, bin_name, &mut std::io::stdout());
+                }
+            }
+            other => {
+                return Err(anyhow::anyhow!(format!(
+                    "Unsupported shell '{}'. Use one of: bash, zsh, fish, powershell, elvish",
+                    other
+                )));
+            }
+        }
+        Ok(())
+    }
     async fn create_ticket_internal(&mut self, project: String, name: String, description: Option<String>) -> Result<()> {
         let validated_project = validate_project_name(&project)?;
         let validated_name = validate_content_length(&name, ContentType::TicketName)?;
@@ -892,20 +1061,23 @@ impl CommandHandler {
         Ok(())
     }
 
-    async fn list_tickets_internal(&mut self, project: Option<String>, status: Option<String>, json: bool) -> Result<()> {
+    async fn list_tickets_internal(&mut self, project: Option<String>, status: Option<String>, sort: Option<String>, json: bool) -> Result<()> {
         let validated_project = if let Some(ref proj) = project {
             Some(validate_project_name(proj)?)
         } else {
             None
         };
 
-        // For now, ignore status filter - will implement later
-        if status.is_some() {
-            feedback::show_warning("Status filtering not yet implemented, showing all tickets");
-        }
-
+        let sort_field = sort.unwrap_or_else(|| "updated".to_string());
         let pb = feedback::create_progress_bar("Loading tickets");
-        let tickets = self.db.list_tickets(validated_project.as_deref()).await?;
+        let tickets = self
+            .db
+            .list_tickets_filtered(
+                validated_project.as_deref(),
+                status.as_deref(),
+                &sort_field,
+            )
+            .await?;
         pb.finish_and_clear();
 
         if json {
@@ -978,14 +1150,18 @@ impl CommandHandler {
 
         match field {
             "name" => {
-                let _validated_name = validate_content_length(value, ContentType::TicketName)?;
-                // TODO: Implement update_ticket_name in database
-                feedback::show_error("Ticket name updates not yet implemented in database layer");
+                let validated_name = validate_content_length(value, ContentType::TicketName)?;
+                let pb = feedback::create_progress_bar("Updating ticket name");
+                self.db.update_ticket_name(validated_ticket_id, &validated_name).await?;
+                pb.finish_with_message("Ticket updated");
+                feedback::show_success(&format!("Ticket {} name updated", validated_ticket_id));
             }
             "description" => {
-                let _validated_description = validate_content_length(value, ContentType::Description)?;
-                // TODO: Implement update_ticket_description in database
-                feedback::show_error("Ticket description updates not yet implemented in database layer");
+                let validated_description = validate_content_length(value, ContentType::Description)?;
+                let pb = feedback::create_progress_bar("Updating ticket description");
+                self.db.update_ticket_description(validated_ticket_id, &validated_description).await?;
+                pb.finish_with_message("Ticket updated");
+                feedback::show_success(&format!("Ticket {} description updated", validated_ticket_id));
             }
             "status" => {
                 let validated_status = validate_status(value)?;
@@ -1019,15 +1195,30 @@ impl CommandHandler {
     }
 
     async fn move_ticket_internal(&mut self, ticket_id: &str, project: &str) -> Result<()> {
-        let _validated_ticket_id = validate_ticket_id(ticket_id)?;
-        let _validated_project = validate_project_name(project)?;
-        feedback::show_error("Ticket move functionality not yet implemented in database layer");
+        let validated_ticket_id = validate_ticket_id(ticket_id)?;
+        let validated_project = validate_project_name(project)?;
+        self.validate_ticket_exists(validated_ticket_id).await?;
+        let pb = feedback::create_progress_bar("Moving ticket");
+        self.db.move_ticket_project(validated_ticket_id, &validated_project).await?;
+        pb.finish_with_message("Ticket moved");
+        feedback::show_success(&format!("Ticket {} moved to project '{}'", validated_ticket_id, validated_project));
         Ok(())
     }
 
-    async fn copy_ticket_internal(&mut self, ticket_id: &str, _project: Option<String>) -> Result<()> {
-        let _validated_ticket_id = validate_ticket_id(ticket_id)?;
-        feedback::show_error("Ticket copy functionality not yet implemented");
+    async fn copy_ticket_internal(&mut self, ticket_id: &str, project: Option<String>) -> Result<()> {
+        let validated_ticket_id = validate_ticket_id(ticket_id)?;
+        self.validate_ticket_exists(validated_ticket_id).await?;
+        let validated_project = match project {
+            Some(p) => Some(validate_project_name(&p)?),
+            None => None,
+        };
+        let pb = feedback::create_progress_bar("Copying ticket");
+        let new_id = self
+            .db
+            .copy_ticket(validated_ticket_id, validated_project.as_deref())
+            .await?;
+        pb.finish_with_message("Ticket copied");
+        feedback::show_success(&format!("Copied ticket {} to new ticket {}", validated_ticket_id, new_id));
         Ok(())
     }
 
@@ -1071,31 +1262,27 @@ impl CommandHandler {
         let pb = feedback::create_progress_bar("Loading project summary");
         let summary = self.db.get_project_summary(&validated_project).await?;
         pb.finish_and_clear();
+        
+        if json {
+            let output = crate::json_formatting::format_project_summary_json(&validated_project, &summary);
+            println!("{}", output);
+            return Ok(());
+        }
 
         if summary.total_tickets == 0 {
-            if json {
-                let output = crate::json_formatting::format_project_summary_json(&validated_project, &summary);
-                println!("{}", output);
-            } else {
-                feedback::show_info(&format!("No tickets found for project '{}'", validated_project));
-
-                let suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
-                if let Some(suggestion_msg) = suggestions::format_suggestions(&validated_project, &suggestions, "project") {
-                    feedback::show_thinking(&suggestion_msg);
-                }
+            feedback::show_info(&format!("No tickets found for project '{}'", validated_project));
+            let suggestions = suggestions::suggest_project_names(&self.db, &validated_project).await?;
+            if let Some(suggestion_msg) = suggestions::format_suggestions(&validated_project, &suggestions, "project") {
+                feedback::show_thinking(&suggestion_msg);
             }
-        } else {
-            if json {
-                let output = crate::json_formatting::format_project_summary_json(&validated_project, &summary);
-                println!("{}", output);
-            } else {
-                feedback::show_success(&format!("📊 Project Summary for '{}':", validated_project));
-                println!("   📋 Total Tickets: {}", summary.total_tickets);
-                println!("   🟢 Open Tickets: {}", summary.open_tickets);
-                println!("   🔴 Closed Tickets: {}", summary.closed_tickets);
-                println!("   ⏱️  Total Time: {:.2} hours", summary.total_time_hours);
-            }
+            return Ok(());
         }
+
+        feedback::show_success(&format!("📊 Project Summary for '{}':", validated_project));
+        println!("   📋 Total Tickets: {}", summary.total_tickets);
+        println!("   🟢 Open Tickets: {}", summary.open_tickets);
+        println!("   🔴 Closed Tickets: {}", summary.closed_tickets);
+        println!("   ⏱️  Total Time: {:.2} hours", summary.total_time_hours);
         Ok(())
     }
 
@@ -1358,13 +1545,15 @@ impl CommandHandler {
                     minutes = m;
                 }
             }
-
+            
+            crate::validation::validate_time(hours, minutes)?;
             Ok((hours, minutes))
         } else {
             // Try to parse as decimal hours
             if let Ok(decimal_hours) = duration.parse::<f64>() {
                 let hours = decimal_hours.floor() as i32;
                 let minutes = ((decimal_hours - decimal_hours.floor()) * 60.0) as i32;
+                crate::validation::validate_time(hours, minutes)?;
                 Ok((hours, minutes))
             } else {
                 Err(anyhow::anyhow!("Invalid duration format. Use '2h30m', '1.5h', or '90m'"))

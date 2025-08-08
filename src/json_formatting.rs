@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// JSON response structure for ticket list command
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TicketListResponse {
+    pub version: String,
     pub tickets: Vec<Ticket>,
     pub summary: TicketListSummary,
     pub project_filter: Option<String>,
@@ -22,6 +23,7 @@ pub struct TicketListSummary {
 /// JSON response structure for ticket details command  
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TicketDetailsResponse {
+    pub version: String,
     pub ticket: Ticket,
     pub comments: Vec<Comment>,
     pub time_logs: Vec<TimeLog>,
@@ -30,6 +32,7 @@ pub struct TicketDetailsResponse {
 /// JSON response structure for project summary command
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectSummaryResponse {
+    pub version: String,
     pub project: String,
     pub summary: ProjectSummary,
 }
@@ -37,6 +40,7 @@ pub struct ProjectSummaryResponse {
 /// JSON error response structure
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
+    pub version: String,
     pub error: bool,
     pub message: String,
     pub code: String,
@@ -52,6 +56,7 @@ pub fn format_ticket_list_json(tickets: &[Ticket], project_filter: Option<&str>)
     let open = total - closed;
     
     let response = TicketListResponse {
+        version: "1.0".to_string(),
         tickets: tickets.to_vec(),
         summary: TicketListSummary {
             total_tickets: total,
@@ -64,9 +69,17 @@ pub fn format_ticket_list_json(tickets: &[Ticket], project_filter: Option<&str>)
     serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string())
 }
 
+/// Format ticket list as pretty JSON
+pub fn format_ticket_list_json_pretty(tickets: &[Ticket], project_filter: Option<&str>) -> String {
+    let minified = format_ticket_list_json(tickets, project_filter);
+    let v: serde_json::Value = serde_json::from_str(&minified).unwrap_or(serde_json::json!({}));
+    serde_json::to_string_pretty(&v).unwrap_or_else(|_| minified)
+}
+
 /// Format ticket details as JSON
 pub fn format_ticket_details_json(ticket: &Ticket, comments: &[Comment], time_logs: &[TimeLog]) -> String {
     let response = TicketDetailsResponse {
+        version: "1.0".to_string(),
         ticket: ticket.clone(),
         comments: comments.to_vec(),
         time_logs: time_logs.to_vec(),
@@ -75,14 +88,29 @@ pub fn format_ticket_details_json(ticket: &Ticket, comments: &[Comment], time_lo
     serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string())
 }
 
+/// Format ticket details as pretty JSON
+pub fn format_ticket_details_json_pretty(ticket: &Ticket, comments: &[Comment], time_logs: &[TimeLog]) -> String {
+    let minified = format_ticket_details_json(ticket, comments, time_logs);
+    let v: serde_json::Value = serde_json::from_str(&minified).unwrap_or(serde_json::json!({}));
+    serde_json::to_string_pretty(&v).unwrap_or_else(|_| minified)
+}
+
 /// Format project summary as JSON
 pub fn format_project_summary_json(project: &str, summary: &ProjectSummary) -> String {
     let response = ProjectSummaryResponse {
+        version: "1.0".to_string(),
         project: project.to_string(),
         summary: summary.clone(),
     };
     
     serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Format project summary as pretty JSON
+pub fn format_project_summary_json_pretty(project: &str, summary: &ProjectSummary) -> String {
+    let minified = format_project_summary_json(project, summary);
+    let v: serde_json::Value = serde_json::from_str(&minified).unwrap_or(serde_json::json!({}));
+    serde_json::to_string_pretty(&v).unwrap_or_else(|_| minified)
 }
 
 /// Format validation error as JSON
@@ -125,6 +153,7 @@ pub fn format_error_json(error: &ValidationError) -> String {
     };
     
     let response = ErrorResponse {
+        version: "1.0".to_string(),
         error: true,
         message,
         code,
@@ -132,6 +161,13 @@ pub fn format_error_json(error: &ValidationError) -> String {
     };
     
     serde_json::to_string(&response).unwrap_or_else(|_| r#"{"error": true, "message": "Serialization failed"}"#.to_string())
+}
+
+/// Pretty error JSON
+pub fn format_error_json_pretty(error: &ValidationError) -> String {
+    let minified = format_error_json(error);
+    let v: serde_json::Value = serde_json::from_str(&minified).unwrap_or(serde_json::json!({}));
+    serde_json::to_string_pretty(&v).unwrap_or_else(|_| minified)
 }
 
 /// Convert NaiveDateTime to ISO 8601 string (utility function for tests)
